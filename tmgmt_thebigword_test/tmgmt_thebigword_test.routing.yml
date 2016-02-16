@@ -1,0 +1,14 @@
+tmgmt_thebigword_test.project:
+  path: '/tmgmt_thebigword_mock/v1/project'
+  defaults:
+    _controller: '\Drupal\tmgmt_thebigword_test\Controller\ThebigwordTranslatorTestController::createProject'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]
+tmgmt_thebigword_test.file:
+  path: '/tmgmt_thebigword_mock/v1/file'
+  defaults:
+    _controller: '\Drupal\tmgmt_thebigword_test\Controller\ThebigwordTranslatorTestController::file'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]

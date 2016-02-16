@@ -1,0 +1,7 @@
+tmgmt_thebigword.callback:
+  path: /tmgmt_thebigword_callback
+  defaults:
+    _title: 'TMGMT Thebigword Callback'
+    _controller: '\Drupal\tmgmt_thebigword\Controller\ThebigwordController::callback'
+  requirements:
+    _access: 'TRUE'
