@@ -7,6 +7,7 @@
 
 namespace Drupal\tmgmt_thebigword;
 
+use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\tmgmt\TranslatorPluginUiBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\tmgmt\JobInterface;
@@ -56,17 +57,19 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
     /** @var \Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
     $translator_plugin->setTranslator($job->getTranslator());
+    /** @var \DateTime $default_datetime */
+    $default_datetime = (new DrupalDateTime())->modify('+1 week');
     $settings['required_by'] = [
       '#type' => 'datetime',
       '#title' => t('Required By'),
-      '#description' => t('The date the project is required by.'),
-      '#default_value' => $job->getSetting('required_by') ? $job->getSetting('required_by') : '',
+      '#description' => t('The date the project is required by. You will not get translations during the weekends.'),
+      '#default_value' => $job->getSetting('required_by') ? $job->getSetting('required_by') : DrupalDateTime::createFromDateTime($default_datetime),
     ];
     $settings['quote_required'] = [
       '#type' => 'checkbox',
       '#title' => t('Quote required'),
       '#description' => t('Is the quote required?'),
-      '#default_value' => $job->getSetting('quote_required') ? $job->getSetting('quote_required') : '',
+      '#default_value' => $job->getSetting('quote_required') ? $job->getSetting('quote_required') : FALSE,
     ];
     $settings['category'] = [
       '#type' => 'select',
@@ -74,10 +77,40 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
       '#description' => t('Select a category to identify the area of the text you will request to translate.'),
       '#empty_option' => ' - ',
       '#options' => $translator_plugin->getCategory($job),
-      '#default_value' => $job->getSetting('category') ? $job->getSetting('category') : '',
+      '#default_value' => $job->getSetting('category') ? $job->getSetting('category') : 1,
     ];
 
     return $settings;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function checkoutInfo(JobInterface $job) {
+    $form = array();
+
+    if ($job->isActive()) {
+      $form['actions']['pull'] = array(
+        '#type' => 'submit',
+        '#value' => t('Pull translations'),
+        '#submit' => array(array($this, 'submitPullTranslations')),
+        '#weight' => -10,
+      );
+    }
+
+    return $form;
+  }
+
+  /**
+   * Submit callback to pull translations form Thebigword.
+   */
+  public function submitPullTranslations(array $form, FormStateInterface $form_state) {
+    /** @var \Drupal\tmgmt\Entity\Job $job */
+    $job = $form_state->getFormObject()->getEntity();
+    /** @var \Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator $translator_plugin */
+    $translator_plugin = $job->getTranslator()->getPlugin();
+    $translator_plugin->getTranslatedFiles($job);
+    tmgmt_write_request_messages($job);
   }
 
 }
