@@ -7,6 +7,7 @@ namespace Drupal\tmgmt_thebigword\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\tmgmt\Entity\JobItem;
+use Drupal\tmgmt\Entity\RemoteMapping;
 use Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,12 +28,17 @@ class ThebigwordController extends ControllerBase {
    *   The response to return.
    */
   public function callback(Request $request) {
-    if ($request->get('event') == 'project.resources.new' && $request->get('resource_type') == 'translation') {
-      $job_item_id = $request->get('custom0');
-      if ($request->get('custom1') == ThebigwordTranslator::hash($job_item_id)) {
+    \Drupal::logger('tmgmt_thebigword')->warning('Request received %request', ['%request' => $request]);
+    if (TRUE) {
+      $project_id = $request->get('ProjectId');
+      $file_id = $request->get('FileId');
+      $state = $request->get('FileState');
+      if (isset($project_id) && isset($file_id) && isset($state)) {
+        $remotes = RemoteMapping::loadByRemoteIdentifier('ProjectId', $project_id);
+        $job_item_id = array_search($file_id, reset($remotes)->getRemoteData('files'));
         /** @var JobItem $job_item */
         if (!$job_item = JobItem::load($job_item_id)) {
-          throw new NotFoundHttpException;
+          throw new NotFoundHttpException();
         }
 
         /** @var ThebigwordTranslator $translator_plugin */
@@ -41,8 +47,8 @@ class ThebigwordController extends ControllerBase {
         $translator_plugin->retrieveTranslation([$request->get('resource_uuid')], $job_item, $request->get('project_id'));
       }
       else {
-        \Drupal::logger('tmgmt_thebigword')->warning('Wrong call for submitting translation for job item %id', ['%id' => $job_item_id,]);
-        throw new NotFoundHttpException;
+        \Drupal::logger('tmgmt_thebigword')->warning('Wrong call for submitting translation for project %id', ['%id' => $project_id]);
+        throw new NotFoundHttpException();
       }
     }
     return new Response();
