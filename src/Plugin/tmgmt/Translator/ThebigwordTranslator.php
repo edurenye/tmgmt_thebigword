@@ -8,6 +8,7 @@
 namespace Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator;
 
 use Drupal\Core\Cache\Cache;
+use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Url;
 use Drupal\tmgmt\ContinuousTranslatorInterface;
@@ -15,7 +16,6 @@ use Drupal\tmgmt\Entity\Job;
 use Drupal\tmgmt\Entity\RemoteMapping;
 use Drupal\tmgmt\Entity\Translator;
 use Drupal\tmgmt\JobItemInterface;
-use Drupal\tmgmt\RemoteTranslatorInterface;
 use Drupal\tmgmt\TMGMTException;
 use Drupal\tmgmt\TranslatorPluginBase;
 use GuzzleHttp\Exception\BadResponseException;
@@ -35,7 +35,7 @@ use Drupal\tmgmt\Translator\AvailableResult;
  *   ui = "Drupal\tmgmt_thebigword\ThebigwordTranslatorUi"
  * )
  */
-class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFactoryPluginInterface, ContinuousTranslatorInterface, RemoteTranslatorInterface {
+class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFactoryPluginInterface, ContinuousTranslatorInterface {//}, RemoteTranslatorInterface {
 
   /**
    * Translation service URL.
@@ -135,6 +135,23 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
           ]);
         $remote_mapping->save();
         $this->sendFiles($job_item);
+      }
+      // Confirm is required to trigger the translation.
+      $form_params = [
+        'ProjectId' => $project_id,
+        'FileState' => 'ReferenceAdd',
+      ];
+      $confirmed = $this->request('fileinfos/uploaded', 'POST', $form_params);
+      if (!$confirmed) {
+        throw new TMGMTException('The file @name was not correctly uploaded.', ['@name' => 'preview-url.xml']);
+      }
+      $form_params = [
+        'ProjectId' => $project_id,
+        'FileState' => 'TranslatableSource',
+      ];
+      $confirmed = $this->request('fileinfos/uploaded', 'POST', $form_params);
+      if (!$confirmed) {
+        throw new TMGMTException('The sources were not correctly uploaded.');
       }
 
       $job->submitted('Job has been successfully submitted for translation.');
@@ -373,7 +390,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       $name = "JobID_{$job_item->getJob()->id()}_JobItemID_{$job_item_id}_{$job_item->getJob()->getSourceLangcode()}_{$target_language}";
 
       $file_id = $this->uploadFileResource($xliff, $job_item->getJob(), $job_item_id, $name);
-      $this->sendPreviewUrl($job_item, $file_id);
+      $this->sendPreviewUrl($job_item, $file_id, 'ReferenceAdd');
       $cache->set($cid, $file_id, Cache::PERMANENT, $job_item->getCacheTags());
     }
     $resource_uuids[$job_item_id] = $file_id;
@@ -415,15 +432,6 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       'FileData' => base64_encode($xliff),
     ];
     $file_id = $this->request('file', 'POST', $form_params);
-    // Confirm is required to trigger the translation.
-    $form_params = [
-      'ProjectId' => $project_id,
-      'FileState' => 'TranslatableSource',
-    ];
-    $confirmed = $this->request('fileinfos/uploaded', 'POST', $form_params);
-    if (!$confirmed) {
-      throw new TMGMTException('The file @name was not correctly uploaded.', ['@name' => "$name.xliff"]);
-    }
 
     $files = $remote_mapping->getRemoteData('files');
     $files[$file_id] = ['FileStateVersion' => 1];
@@ -455,12 +463,16 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
    *
    * @param Job $job
    *   A job containing job items that translations will be fetched for.
+   * @param string $state
+   *   The state of the files.
    *
    * @return bool
-   *   Returns TRUE if there are error messages during the process of retrieving
-   *   translations. Otherwise FALSE.
+   *   Returns TRUE if there are error messages during the process of
+   *   retrieving translations. Otherwise FALSE.
+   *
+   * @throws \Drupal\tmgmt\TMGMTException
    */
-  public function getTranslatedFiles(Job $job) {
+  public function getTranslatedFiles(Job $job, $state) {
     // Search for placeholder item.
     $result = RemoteMapping::loadByLocalData($job->id());
     $remote = reset($result);
@@ -472,7 +484,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       // Get the files of this project.
       $project_id = $remote->getRemoteIdentifier2();
       $project_id = 18716632;
-      $files = $this->request('fileinfos/TranslatableReviewPreview');
+      $files = $this->request('fileinfos/' . $state);
       $my_files = [];
       foreach ($files as $file) {
         if ($file['ProjectId'] == $project_id) {
@@ -482,7 +494,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       $remotes = [];
       foreach ($result as $remote) {
         /** @var RemoteMapping $remote */
-        $remotes[$remote->getJobId()] = $remote;
+        $remotes[$remote->getJobItem()->id()] = $remote;
       }
 
       // Loop over job items and check for if there is a translation available.
@@ -494,18 +506,30 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
         $original_file_id = $file_id;
         $file_id = '0067ccc1-0000-0000-0000-000000000000';
         if (isset($file_id) && array_key_exists($file_id, $my_files)) {
-          $data = $this->request('file/TranslatableReviewPreview/' . $file_id);
+          $data = $this->request('file/' . $state . '/' . $file_id);
           $decoded_data = base64_decode($data['FileData']);
-          $data = str_replace('id="6', 'id="' . $job->id(), $decoded_data);
-          $data = str_replace('resname="6', 'resname="' . $job->id(), $data);
+          $data = str_replace('id="6', 'id="' . $job_item->id(), $decoded_data);
+          $data = str_replace('resname="6', 'resname="' . $job_item->id(), $data);
+          $data = str_replace('job-id="' . $job_item->id(), 'job-id="' . $job->id(), $data);
           $file_data = $this->parseTranslationData($data);
-          $job_item->getJob()->addTranslatedData($file_data);
+          $file_data = $this->addPreliminaryStateToData($file_data);
+          if ($state == 'TranslatableComplete') {
+            $status = TMGMT_DATA_ITEM_STATE_TRANSLATED;
+          }
+          else {
+            $status = TMGMT_DATA_ITEM_STATE_PRELIMINARY;
+          }
+          $job_item->getJob()->addTranslatedData($file_data, [], $status);
           // Confirm that we download the file.
           $form_params = [
-            'FileId' => $file_id,
+            'FileId' => $original_file_id,
             'FileState' => 'TranslatableReviewPreview',
           ];
-          // $this->request('fileinfos/downloaded', 'PUT', $form_params);
+          // $this->request('fileinfos/downloaded', 'POST', $form_params);
+
+          if ($status == TMGMT_DATA_ITEM_STATE_PRELIMINARY) {
+            $this->sendPreviewUrl($job_item, $original_file_id, 'ResourcePreviewUrl');
+          }
           $translated++;
         }
         else {
@@ -577,16 +601,15 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
    *
    * @throws \Drupal\tmgmt\TMGMTException
    */
-  protected function sendPreviewUrl(JobItemInterface $job_item, $file_id) {
+  protected function sendPreviewUrl(JobItemInterface $job_item, $file_id, $state) {
     $remote_mappings = RemoteMapping::loadByLocalData($job_item->getJobId(), $job_item->id(), 'tmgmt_thebigword');
     $remote_mapping = reset($remote_mappings);
     $project_id = $remote_mapping->getRemoteIdentifier2();
 
     /** @var Url $preview_url */
-    $preview_url = $job_item->getSourcePlugin()->getPreviewUrl($job_item);
     $preview_url = new Url('tmgmt_content.job_item_preview', ['tmgmt_job_item' => $job_item->id()], ['query' => ['key' => \Drupal::service('tmgmt_content.key_access')->getKey($job_item)]]);
     $preview_data = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE PreviewUrl SYSTEM "http://www.thebigword.com/dtds/PreviewUrl.dtd">
-<PreviewUrl>' . $_SERVER['HTTP_HOST'] . '/' . $preview_url->getInternalPath() . '</PreviewUrl>';
+<PreviewUrl>' . $_SERVER['HTTP_HOST'] . '/' . $preview_url->getInternalPath() . '?key=' . $preview_url->getOption('query')['key'] . '</PreviewUrl>';
 
     /** @var \DateTime $required_by */
     $required_by = $job_item->getJob()->getSetting('required_by');
@@ -597,21 +620,12 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       'RequiredByDateUtc' => $datetime,
       'SourceLanguage' => $job_item->getJob()->getRemoteSourceLanguage(),
       'TargetLanguage' => $job_item->getJob()->getRemoteTargetLanguage(),
-      'FileIdToUpdate' => $file_id,
       'FilePathAndName' => 'preview-url.xml',
-      'FileState' => 'ReferenceAdd',
+      'FileState' => $state,
       'FileData' => base64_encode($preview_data),
+      'FileIdToUpdate' => $file_id,
     ];
     $file_id = $this->request('file', 'PUT', $form_params);
-    // Confirm is required to trigger the translation.
-    $form_params = [
-      'ProjectId' => $project_id,
-      'FileState' => 'ReferenceAdd',
-    ];
-    // $confirmed = $this->request('fileinfos/uploaded', 'PUT', $form_params);
-    /*if (!$confirmed) {
-      throw new TMGMTException('The file @name was not correctly uploaded.', ['@name' => 'preview-url.xml']);
-    }*/
 
     return $file_id;
   }
@@ -645,8 +659,8 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
           $tmp_file_id = '0067ccc1-0000-0000-0000-000000000000';
           $data = $this->request('file/TranslatableReviewPreview/' . $tmp_file_id);
           $decoded_data = base64_decode($data['FileData']);
-          $data = str_replace('id="6', 'id="' . $remote->getJobId(), $decoded_data);
-          $data = str_replace('resname="6', 'resname="' . $remote->getJobId(), $data);
+          $data = str_replace('id="6', 'id="' . $remote->getJobITemId(), $decoded_data);
+          $data = str_replace('resname="6', 'resname="' . $remote->getJobItemId(), $data);
           $file_data = $this->parseTranslationData($data);
           $remote->getJob()->addTranslatedData($file_data);
           // Confirm that we download the file.
@@ -673,6 +687,56 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       return FALSE;
     }
     return TRUE;
+  }
+
+  /**
+   * Sends an error file to Thebigword.
+   *
+   * @param \Drupal\tmgmt\JobItemInterface $job_item
+   *   The JobItem.
+   * @param string $state
+   *   The state.
+   * @param string $message
+   *   The error message.
+   *
+   * @throws \Drupal\tmgmt\TMGMTException
+   */
+  public function sendFileError(JobItemInterface $job_item, $state, $message = '') {
+    $remote_mappings = RemoteMapping::loadByLocalData($job_item->getJobId(), $job_item->id(), 'tmgmt_thebigword');
+    $remote_mapping = reset($remote_mappings);
+    $project_id = $remote_mapping->getRemoteIdentifier2();
+
+    /** @var \DateTime $required_by */
+    $required_by = $job_item->getJob()->getSetting('required_by');
+    $required_by->setTimezone(new \DateTimeZone('UTC'));
+    $datetime = (new DrupalDateTime())->format('Y-m-d\TH:i:s');
+    $form_params = [
+      'ProjectId' => $project_id,
+      'RequiredByDateUtc' => $datetime,
+      'SourceLanguage' => $job_item->getJob()->getRemoteSourceLanguage(),
+      'TargetLanguage' => $job_item->getJob()->getRemoteTargetLanguage(),
+      'FilePathAndName' => 'error-' . (new DrupalDateTime())->format('Y-m-d\TH:i:s') . '.txt',
+      'FileState' => $state,
+      'FileData' => base64_encode($message),
+    ];
+    $this->request('file', 'POST', $form_params);
+  }
+
+  /**
+   * Add the prliminary state to the data items.
+   *
+   * @param array $data_items
+   *   Data items.
+   */
+  private function addPreliminaryStateToData($data_items) {
+    if (isset($data_items['#text'])) {
+      $data_items['#status'] = TMGMT_DATA_ITEM_STATE_PRELIMINARY;
+      return $data_items;
+    }
+    foreach ($data_items as $key => $data_item) {
+      $data_items[$key] = $this->addPreliminaryStateToData($data_item);
+    }
+    return $data_items;
   }
 
 }

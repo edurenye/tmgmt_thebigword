@@ -109,7 +109,8 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
     $job = $form_state->getFormObject()->getEntity();
     /** @var \Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
-    $translator_plugin->getTranslatedFiles($job);
+    $translator_plugin->getTranslatedFiles($job, 'TranslatableReviewPreview');
+    $translator_plugin->getTranslatedFiles($job, 'TranslatableComplete');
     tmgmt_write_request_messages($job);
   }
 
