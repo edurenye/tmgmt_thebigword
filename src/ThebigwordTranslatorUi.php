@@ -79,6 +79,12 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
       '#options' => $translator_plugin->getCategory($job),
       '#default_value' => $job->getSetting('category') ? $job->getSetting('category') : 1,
     ];
+    /*$settings['review'] = [
+      '#type' => 'checkbox',
+      '#title' => t('Review'),
+      '#description' => t('Set a preview available'),
+      '#default_value' => $job->getSetting('review') ? $job->getSetting('review') : TRUE,
+    ];*/
 
     return $settings;
   }
