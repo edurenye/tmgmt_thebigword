@@ -79,12 +79,12 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
       '#options' => $translator_plugin->getCategory($job),
       '#default_value' => $job->getSetting('category') ? $job->getSetting('category') : 1,
     ];
-    /*$settings['review'] = [
+    $settings['review'] = [
       '#type' => 'checkbox',
       '#title' => t('Review'),
-      '#description' => t('Set a preview available'),
+      '#description' => t('Set the project as reviewable.'),
       '#default_value' => $job->getSetting('review') ? $job->getSetting('review') : TRUE,
-    ];*/
+    ];
 
     return $settings;
   }
@@ -116,7 +116,7 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
     /** @var \Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
     $translator_plugin->getTranslatedFiles($job, 'TranslatableReviewPreview');
-    $translator_plugin->getTranslatedFiles($job, 'TranslatableComplete');
+    // $translator_plugin->getTranslatedFiles($job, 'TranslatableComplete');
     tmgmt_write_request_messages($job);
   }
 

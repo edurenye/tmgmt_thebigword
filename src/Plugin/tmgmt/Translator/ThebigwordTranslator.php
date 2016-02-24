@@ -36,7 +36,7 @@ use Drupal\tmgmt\Translator\AvailableResult;
  *   ui = "Drupal\tmgmt_thebigword\ThebigwordTranslatorUi"
  * )
  */
-class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFactoryPluginInterface, ContinuousTranslatorInterface, RemoteTranslatorInterface {
+class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFactoryPluginInterface, ContinuousTranslatorInterface {//}, RemoteTranslatorInterface {
 
   /**
    * Translation service URL.
@@ -120,7 +120,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
 
     try {
       $job_id = $job->id();
-      $project_id = $this->newTranslationProject($job_id, $job_id, $job->getSetting('required_by'), $job->getSetting('quote_required'), $job->getSetting('category'));//, $job->getSetting('review'));
+      $project_id = $this->newTranslationProject($job_id, $job_id, $job->getSetting('required_by'), $job->getSetting('quote_required'), $job->getSetting('category'), $job->getSetting('review'));
 
       foreach ($job->getItems() as $job_item) {
         /** @var RemoteMapping $remote_mapping */
@@ -145,7 +145,6 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       $confirmed = $this->request('fileinfos/uploaded', 'POST', $form_params);
       if ($confirmed != count($job->getItems())) {
         $message = 'Not all the references had been confirmed.';
-        $this->sendFileError('RestartPoint01', $message, $job);
         throw new TMGMTException($message);
       }
       $form_params = [
@@ -155,13 +154,13 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       $confirmed = $this->request('fileinfos/uploaded', 'POST', $form_params);
       if ($confirmed != count($job->getItems())) {
         $message = 'Not all the sources had been confirmed.';
-        $this->sendFileError('RestartPoint01', $message, $job);
         throw new TMGMTException($message);
       }
 
       $job->submitted('Job has been successfully submitted for translation.');
     }
     catch (TMGMTException $e) {
+      $this->sendFileError('RestartPoint01', '', $e->getMessage(), $job, NULL, TRUE);
       \Drupal::logger('tmgmt_thebigword')->error('Job has been rejected with following error: @error',
         array('@error' => $e->getMessage()));
       $job->rejected('Job has been rejected with following error: @error',
@@ -213,7 +212,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
     }
     catch (BadResponseException $e) {
       $response = $e->getResponse();
-      debug($response->getBody()->getContents());
+      // debug($response->getBody()->getContents());
       throw new TMGMTException('Unable to connect to Thebigword service due to following error: @error', ['@error' => $response->getReasonPhrase()], $response->getStatusCode());
     }
 
@@ -486,14 +485,15 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
     $result = RemoteMapping::loadByLocalData($job->id());
     $remote = reset($result);
     $this->setTranslator($job->getTranslator());
+    $project_id = $remote->getRemoteIdentifier2();
+    $project_id = 18716632;
     $translated = 0;
     $not_translated = 0;
+    $had_errors = FALSE;
 
     try {
       // Get the files of this project.
-      $project_id = $remote->getRemoteIdentifier2();
-      $project_id = 18716632;
-      $files = $this->request('fileinfos/' . $state);
+      $files = $this->request('fileinfos/TranslatableSource');// . $state);
       $my_files = [];
       foreach ($files as $file) {
         if ($file['ProjectId'] == $project_id) {
@@ -516,6 +516,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
         $file_id = '0067ccc1-0000-0000-0000-000000000000';
         if (isset($file_id) && array_key_exists($file_id, $my_files) && array_key_exists($original_file_id, $files) && $files[$original_file_id]['FileStateVersion'] == $my_files[$file_id]['FileStateVersion']) {
           try {
+            // throw new TMGMTException('Kaboom, error test, do not worry about it.');
             $data = $this->request('file/' . $state . '/' . $file_id);
             $decoded_data = base64_decode($data['FileData']);
             $data = str_replace('id="6', 'id="' . $job_item->id(), $decoded_data);
@@ -532,16 +533,20 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
             $job_item->getJob()->addTranslatedData($file_data, [], $status);
             // Confirm that we download the file.
             $form_params = [
-              'FileId' => $original_file_id,
+              'FileId' => $file_id,
               'FileState' => $state,
             ];
-            $response = $this->request('fileinfo/downloaded', 'POST', $form_params);
+            $this->request('fileinfo/downloaded', 'POST', $form_params);
           }
           catch (TMGMTException $e) {
             $this->sendFileError('RestartPoint01', $file_id, $e->getMessage(), NULL, $job_item);
+            $job->addMessage('Error fetching the job item: @job_item.', array('@job_item' => $job_item->label()));
+            $had_errors = TRUE;
+            $not_translated++;
+            continue;
           }
 
-          if ($status == TMGMT_DATA_ITEM_STATE_PRELIMINARY) {
+          if (isset($status) && $status == TMGMT_DATA_ITEM_STATE_PRELIMINARY) {
             $this->sendPreviewUrl($job_item, $original_file_id, TRUE);
           }
           $translated++;
@@ -550,16 +555,25 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
           $not_translated++;
         }
       }
+    }
+    catch (TMGMTException $e) {
+      $job->addMessage('Could not pull translation resources.', array(), 'error');
+      return FALSE;
+    }
+    finally {
+      if ($had_errors) {
+        $form_params = [
+          'ProjectId' => $project_id,
+          'FileState' => 'RestartPoint01',
+        ];
+        $this->request('fileinfos/uploaded', 'POST', $form_params);
+      }
       if (empty($not_translated)) {
         $job->addMessage('Fetched translations for @translated job items.', array('@translated' => $translated));
       }
       else {
         $job->addMessage('Fetched translations for @translated job items, @not_translated are not translated yet.', array('@translated' => $translated, '@not_translated' => $not_translated));
       }
-    }
-    catch (TMGMTException $e) {
-      $job->addMessage('Could not pull translation resources.', array(), 'error');
-      return FALSE;
     }
     return TRUE;
   }
@@ -671,11 +685,6 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       'FileIdToUpdate' => $file_id,
     ];
     $file_id = $this->request('file', 'PUT', $form_params);
-    $form_params = [
-      'FileId' => $file_id,
-      'FileState' => $state,
-    ];
-    $this->request('fileinfos/uploaded', 'POST', $form_params);
 
     return $file_id;
   }
@@ -723,18 +732,17 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
           $not_translated++;
         }
       }
-      if (empty($not_translated)) {
-        drupal_set_message('Fetched translations for @translated job items.', array('@translated' => $translated));
-      }
-      else {
-        drupal_set_message('Fetched translations for @translated job items, @not_translated are not translated yet.', array('@translated' => $translated, '@not_translated' => $not_translated));
-      }
     }
     catch (TMGMTException $e) {
       drupal_set_message('Could not pull translation resources.', array(), 'error');
       return FALSE;
     }
-    return TRUE;
+    finally {
+      return [
+        'translated' => $translated,
+        'untranslated' => $not_translated,
+      ];
+    }
   }
 
   /**
@@ -752,12 +760,15 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
    * @param \Drupal\tmgmt\JobItemInterface $job_item
    *   (Optional) A JobItem.
    *   At least or a Job or a JobItem must be given.
+   * @param bool $confirm
+   *   (Optional) Set to TRUE if also want to send the confirmation message
+   *   of this error. Otherwise will not send it.
    *
    * @throws \Drupal\tmgmt\TMGMTException
    *   If there is a problem with the request or if no Job and no JobItem are
    *   given.
    */
-  public function sendFileError($state, $file_id, $message = '', JobInterface $job = NULL, JobItemInterface $job_item = NULL) {
+  public function sendFileError($state, $file_id, $message = '', JobInterface $job = NULL, JobItemInterface $job_item = NULL, $confirm = FALSE) {
     if (!$job_item && !$job) {
       throw new TMGMTException('No Job or JobItem given to sendFileError, at least one of both arguments is mandatory.');
     }
@@ -782,12 +793,14 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       'FileState' => $state,
       'FileData' => base64_encode($message),
     ];
-    $file_id = $this->request('file', 'POST', $form_params);
-    $form_params = [
-      'FileId' => $file_id,
-      'FileState' => $state,
-    ];
-    $this->request('fileinfos/uploaded', 'POST', $form_params);
+    $this->request('file', 'POST', $form_params);
+    if ($confirm) {
+      $form_params = [
+        'ProjectId' => $project_id,
+        'FileState' => 'RestartPoint01',
+      ];
+      $this->request('fileinfos/uploaded', 'POST', $form_params);
+    }
   }
 
   /**
