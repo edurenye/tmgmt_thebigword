@@ -6,7 +6,6 @@
 namespace Drupal\tmgmt_thebigword\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\tmgmt\Entity\JobItem;
 use Drupal\tmgmt\Entity\RemoteMapping;
 use Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,27 +28,30 @@ class ThebigwordController extends ControllerBase {
    */
   public function callback(Request $request) {
     \Drupal::logger('tmgmt_thebigword')->warning('Request received %request', ['%request' => $request]);
-    if (TRUE) {
-      $project_id = $request->get('ProjectId');
-      $file_id = $request->get('FileId');
-      $state = $request->get('FileState');
-      if (isset($project_id) && isset($file_id) && isset($state)) {
-        $remotes = RemoteMapping::loadByRemoteIdentifier('ProjectId', $project_id);
-        $job_item_id = array_search($file_id, reset($remotes)->getRemoteData('files'));
-        /** @var JobItem $job_item */
-        if (!$job_item = JobItem::load($job_item_id)) {
-          throw new NotFoundHttpException();
-        }
-
-        /** @var ThebigwordTranslator $translator_plugin */
-        $translator_plugin = $job_item->getTranslator()->getPlugin();
-        $translator_plugin->setTranslator($job_item->getTranslator());
-        $translator_plugin->retrieveTranslation([$request->get('resource_uuid')], $job_item, $request->get('project_id'));
-      }
-      else {
-        \Drupal::logger('tmgmt_thebigword')->warning('Wrong call for submitting translation for project %id', ['%id' => $project_id]);
+    $project_id = $request->get('ProjectId');
+    $file_id = $request->get('FileId');
+    if (isset($project_id) && isset($file_id)) {
+      $remotes = RemoteMapping::loadByRemoteIdentifier('ProjectId', $project_id);
+      if (empty($remotes)) {
         throw new NotFoundHttpException();
       }
+      /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote */
+      foreach ($remotes as $remote) {
+        if (!isset($remote->getRemoteData('files')[$file_id])) {
+          throw new NotFoundHttpException();
+        }
+      }
+
+      /** @var ThebigwordTranslator $translator_plugin */
+      $translator_plugin = $remote->getJob()->getTranslator()->getPlugin();
+      $translator_plugin->setTranslator($remote->getJob()->getTranslator());
+
+      $info = $translator_plugin->request('fileinfo/' . $file_id);
+      $translator_plugin->addTranslatedFilesToJob($remote->getJob(), $info['FileState']);
+    }
+    else {
+      \Drupal::logger('tmgmt_thebigword')->warning('Wrong call for submitting translation for project %id', ['%id' => $project_id]);
+      throw new NotFoundHttpException();
     }
     return new Response();
   }

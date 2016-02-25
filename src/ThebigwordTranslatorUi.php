@@ -111,12 +111,30 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
    * Submit callback to pull translations form Thebigword.
    */
   public function submitPullTranslations(array $form, FormStateInterface $form_state) {
+    $translated = 0;
+    $untranslated = 0;
     /** @var \Drupal\tmgmt\Entity\Job $job */
     $job = $form_state->getFormObject()->getEntity();
     /** @var \Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
-    $translator_plugin->getTranslatedFiles($job, 'TranslatableReviewPreview');
-    // $translator_plugin->getTranslatedFiles($job, 'TranslatableComplete');
+    $result = $translator_plugin->addTranslatedFilesToJob($job, 'TranslatableReviewPreview');
+    $translated += $result['translated'];
+    $untranslated += $result['untranslated'];
+    $result = $translator_plugin->addTranslatedFilesToJob($job, 'TranslatableComplete');
+    $translated += $result['translated'];
+    $untranslated += $result['untranslated'];
+    if ($untranslated == 0 && $translated != 0) {
+      $job->addMessage('Fetched translations for @translated job items.', array('@translated' => $translated));
+    }
+    elseif ($translated == 0) {
+      drupal_set_message('No job item has been translated yet.');
+    }
+    else {
+      $job->addMessage('Fetched translations for @translated job items, @untranslated are not translated yet.', array(
+        '@translated' => $translated,
+        '@untranslated' => $untranslated,
+      ));
+    }
     tmgmt_write_request_messages($job);
   }
 
