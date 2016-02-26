@@ -33,10 +33,6 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
       '#default_value' => $translator->getSetting('client_contact_key'),
       '#description' => t('Please enter your client contact key.'),
     ];
-    $form['service_url'] = [
-      '#type' => 'value',
-      '#value' => 'http://uat-integration.thebigword.com/drupal/api',
-    ];
     $form += parent::addConnectButton();
 
     return $form;

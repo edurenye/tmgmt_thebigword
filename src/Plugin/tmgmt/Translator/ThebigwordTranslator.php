@@ -266,7 +266,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       throw new TMGMTException('There is no Translator entity. Access to the client contact key is not possible.');
     }
 
-    $url = $this->translator->getSetting('service_url') . '/v' . self::API_VERSION . '/' . $path;
+    $url = \Drupal::config('tmgmt_thebigword.settings')->get('service_url') . '/v' . self::API_VERSION . '/' . $path;
 
     try {
       if ($method == 'GET') {
