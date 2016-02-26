@@ -1,5 +1,5 @@
 name: "Thebigword Translator Test Service Mocker"
-description: "Provides a local implementation of the Thebigword Translater API"
+description: "Provides a local implementation of the thebigword translator API"
 package: "Translation Management"
 core: 8.x
 type: module

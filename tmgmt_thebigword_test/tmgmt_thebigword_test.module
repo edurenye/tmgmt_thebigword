@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Module file of the translation management Thebigword test module.
+ * Module file of the translation management thebigword test module.
  */
 
 use Symfony\Component\HttpFoundation\JsonResponse;

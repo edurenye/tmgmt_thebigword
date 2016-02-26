@@ -1,8 +1,8 @@
-TMGMT Thebigword (tmgmt_thebigword)
+TMGMT thebigword (tmgmt_thebigword)
 ---------------------
 
-TMGMT Thebigword module is a plugin for Translation Management Tool module (tmgmt).
-It uses Thebigword (http://www.thebigword.com) service
+TMGMT thebigword module is a plugin for Translation Management Tool module (tmgmt).
+It uses thebigword (http://www.thebigword.com) service
 for automated translation of the content.
 
 REQUIREMENTS
