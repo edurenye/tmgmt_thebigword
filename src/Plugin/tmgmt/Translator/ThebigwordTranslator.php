@@ -32,7 +32,7 @@ use Drupal\tmgmt\Translator\AvailableResult;
  *
  * @TranslatorPlugin(
  *   id = "thebigword",
- *   label = @Translation("Thebigword translator"),
+ *   label = @Translation("thebigword"),
  *   description = @Translation("Thebigword translator service."),
  *   ui = "Drupal\tmgmt_thebigword\ThebigwordTranslatorUi"
  * )
