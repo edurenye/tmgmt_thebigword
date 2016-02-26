@@ -1,0 +1,15 @@
+tmgmt_thebigword.callback:
+  path: /tmgmt_thebigword_callback
+  defaults:
+    _title: 'Remote Callback'
+    _controller: '\Drupal\tmgmt_thebigword\Controller\RemoteCallbackController::callback'
+  requirements:
+    _access: 'TRUE'
+
+tmgmt_thebigword.no_review:
+  path: /no_review
+  defaults:
+    _title: 'No review response'
+    _controller: '\Drupal\tmgmt_thebigword\Controller\RemoteCallbackController::noReview'
+  requirements:
+    _access: 'TRUE'

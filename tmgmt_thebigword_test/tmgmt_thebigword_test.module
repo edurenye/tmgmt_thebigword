@@ -1,0 +1,32 @@
+<?php
+
+/**
+ * @file
+ * Module file of the translation management thebigword test module.
+ */
+
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+
+/**
+ * Helper function to run authentication.
+ *
+ * @param \Symfony\Component\HttpFoundation\Request $request
+ *   The server request.
+ *
+ * @return \Symfony\Component\HttpFoundation\JsonResponse|void
+ *   The error response or NULL otherwise.
+ */
+function tmgmt_thebigword_test_authenticate(Request $request) {
+
+  if ($request->headers->has('TMS-REQUESTER-ID') && $request->headers->get('TMS-REQUESTER-ID') == 'correct key') {
+    return NULL;
+  }
+
+  return new JsonResponse(array(
+    'opstat' => 'failure',
+    // We do not really need a response here.
+    'response' => '',
+    'err' => array(array((object) array('msg' => 'Authentication failure', 'code' => 100))),
+  ));
+}

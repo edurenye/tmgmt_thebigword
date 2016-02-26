@@ -1,0 +1,67 @@
+<?php
+
+/**
+ * @file
+ * Module file of the Translation Management thebigword module.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\tmgmt\Entity\RemoteMapping;
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function tmgmt_thebigword_form_tmgmt_job_edit_form_alter(&$form, FormStateInterface $form_state) {
+  /** @var \Drupal\tmgmt\JobInterface $job */
+  $job = $form_state->getFormObject()->getEntity();
+  if ($job->getTranslatorPlugin()->getPluginId() == 'thebigword' && !$job->isContinuous()) {
+    $remotes = RemoteMapping::loadByLocalData($job->id());
+    if (count($remotes) == 1) {
+      /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote */
+      $remote = reset($remotes);
+      $project_id = $remote->getRemoteIdentifier2();
+      $form['info'][] = [
+        '#type' => 'item',
+        '#title' => t('Project ID'),
+        '#markup' => $project_id,
+        '#prefix' => '<div id="tmgmt-ui-thebigword-project-id" class="tmgmt-ui-thebigword-project-id tmgmt-ui-info-item">',
+        '#suffix' => '</div>',
+        '#value' => $project_id,
+      ];
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function tmgmt_thebigword_form_tmgmt_job_item_edit_form_alter(&$form, FormStateInterface $form_state) {
+  /** @var \Drupal\tmgmt\JobItemInterface $job_item */
+  $job_item = $form_state->getFormObject()->getEntity();
+  if ($job_item->getTranslatorPlugin()->getPluginId() == 'thebigword') {
+    $remotes = RemoteMapping::loadByLocalData($job_item->getJobId(), $job_item->id());
+    if (!empty($remotes)) {
+      /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote */
+      $remote = reset($remotes);
+      $project_id = $remote->getRemoteIdentifier2();
+      $form['info'][] = [
+        '#type' => 'item',
+        '#title' => t('Project ID'),
+        '#markup' => $project_id,
+        '#prefix' => '<div id="tmgmt-ui-thebigword-project-id" class="tmgmt-ui-thebigword-project-id tmgmt-ui-info-item">',
+        '#suffix' => '</div>',
+        '#value' => $project_id,
+      ];
+      $files = $remote->getRemoteData('files');
+      $file_id = reset($files)['FileId'];
+      $form['info'][] = [
+        '#type' => 'item',
+        '#title' => t('File ID'),
+        '#markup' => $file_id,
+        '#prefix' => '<div id="tmgmt-ui-thebigword-file-id" class="tmgmt-ui-thebigword-file-id tmgmt-ui-info-item">',
+        '#suffix' => '</div>',
+        '#value' => $file_id,
+      ];
+    }
+  }
+}
