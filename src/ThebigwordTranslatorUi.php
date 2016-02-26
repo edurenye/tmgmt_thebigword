@@ -129,10 +129,10 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
 
     /** @var \Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
-    $result = $translator_plugin->addTranslatedFilesToJob($job, 'TranslatableReviewPreview', $project_id);
+    $result = $translator_plugin->fetchTranslatedFiles($job, 'TranslatableReviewPreview', $project_id);
     $translated += $result['translated'];
     $untranslated += $result['untranslated'];
-    $result = $translator_plugin->addTranslatedFilesToJob($job, 'TranslatableComplete', $project_id);
+    $result = $translator_plugin->fetchTranslatedFiles($job, 'TranslatableComplete', $project_id);
     $translated += $result['translated'];
     $untranslated += $result['untranslated'];
     if ($untranslated == 0 && $translated != 0) {

@@ -49,15 +49,28 @@ class RemoteCallbackController extends ControllerBase {
 
       /** @var \Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator $translator_plugin */
       $translator_plugin = $remote->getJob()->getTranslator()->getPlugin();
-      $translator_plugin->setTranslator($remote->getJob()->getTranslator(), $remote->getRemoteIdentifier2());
+      $translator_plugin->setTranslator($remote->getJob()->getTranslator());
 
       $info = $translator_plugin->request('fileinfo/' . $file_id);
-      $translator_plugin->addTranslatedFilesToJob($remote->getJob(), $info['FileState']);
+      $translator_plugin->fetchTranslatedFiles($remote->getJob(), $info['FileState'], $project_id);
     }
     else {
       return new Response('Bad request.', 400);
     }
     return new Response();
+  }
+
+  /**
+   * Returns a no review response.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request to handle.
+   *
+   * @return \Symfony\Component\HttpFoundation\Response
+   *   The response to return.
+   */
+  public function noReview(Request $request) {
+    return new Response('No preview url available for this file.');
   }
 
 }
