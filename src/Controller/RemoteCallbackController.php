@@ -61,7 +61,7 @@ class RemoteCallbackController extends ControllerBase {
   }
 
   /**
-   * Returns a no review response.
+   * Returns a no preview response.
    *
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   The request to handle.
@@ -69,7 +69,7 @@ class RemoteCallbackController extends ControllerBase {
    * @return \Symfony\Component\HttpFoundation\Response
    *   The response to return.
    */
-  public function noReview(Request $request) {
+  public function noPreview(Request $request) {
     return new Response('No preview url available for this file.');
   }
 

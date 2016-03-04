@@ -178,7 +178,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
     }
     return AvailableResult::no(t('@translator is not available. Make sure it is properly <a href=:configured>configured</a>.', [
       '@translator' => $translator->label(),
-      ':configured' => $translator->url(),
+      ':configured' => $translator->toUrl()->toString(),
     ]));
   }
 
@@ -517,26 +517,23 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
    * @throws \Drupal\tmgmt\TMGMTException
    */
   protected function sendUrl(JobItemInterface $job_item, $project_id, $file_id, $preview) {
-
     /** @var Url $url */
-    $uri = $job_item->getSourceUrl()->toString();
+    $url = $job_item->getSourceUrl();
     $state = 'ReferenceAdd';
     $name = 'source-url';
     if ($preview) {
       $source_plugin = $job_item->getSourcePlugin();
       if ($source_plugin instanceof SourcePreviewInterface) {
         $url = $source_plugin->getPreviewUrl($job_item);
-        $uri = $url->toString();
-      }
-      else {
-        // @todo uri that returns a no preview response.
-        $uri = Url::fromRoute('tmgmt_thebigword.no_review')->toString();
       }
       $state = 'ResourcePreviewUrl';
       $name = 'preview-url';
     }
+    if (!$url) {
+      $url = Url::fromRoute('tmgmt_thebigword.no_preview');
+    }
     $preview_data = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE PreviewUrl SYSTEM "http://www.thebigword.com/dtds/PreviewUrl.dtd">
-<PreviewUrl>' . \Drupal::request()->getBaseUrl() . $uri . '</PreviewUrl>';
+<PreviewUrl>' . $url->setAbsolute()->toString() . '</PreviewUrl>';
 
     /** @var \DateTime $required_by */
     $required_by = $job_item->getJob()->getSetting('required_by');

@@ -6,10 +6,10 @@ tmgmt_thebigword.callback:
   requirements:
     _access: 'TRUE'
 
-tmgmt_thebigword.no_review:
-  path: /no_review
+tmgmt_thebigword.no_preview:
+  path: /no_preview
   defaults:
-    _title: 'No review response'
-    _controller: '\Drupal\tmgmt_thebigword\Controller\RemoteCallbackController::noReview'
+    _title: 'No preview response'
+    _controller: '\Drupal\tmgmt_thebigword\Controller\RemoteCallbackController::noPreview'
   requirements:
     _access: 'TRUE'
