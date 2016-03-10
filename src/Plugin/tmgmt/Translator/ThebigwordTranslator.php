@@ -186,6 +186,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function requestTranslation(JobInterface $job) {
     $this->requestJobItemsTranslation($job->getItems());
+    $job->submitted();
   }
 
   /**
@@ -226,19 +227,19 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
         throw new TMGMTException($message);
       }
 
-      $job->submitted('Job has been successfully submitted for translation.');
+      if ($job->isContinuous()) {
+        $job_item->active();
+      }
     }
     catch (TMGMTException $e) {
       try {
         $this->sendFileError('RestartPoint03', $project_id, '', $job, $e->getMessage(), TRUE);
       }
       catch (TMGMTException $e) {
-        drupal_set_message(new TranslatableMarkup('Error sending the error file: @error', ['@error' => $e->getMessage()]), 'error');
+        \Drupal::logger('tmgmt_thebigword')->error('Error sending the error file: @error', ['@error' => $e->getMessage()]);
       }
-      finally {
-        $job->rejected('Job has been rejected with following error: @error',
-          ['@error' => $e->getMessage()], 'error');
-      }
+      $job->rejected('Job has been rejected with following error: @error',
+        ['@error' => $e->getMessage()], 'error');
     }
   }
 
@@ -598,7 +599,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       }
     }
     catch (TMGMTException $e) {
-      drupal_set_message(new TranslatableMarkup('Could not pull translation resources due to the following error: @message', ['@message' => $e->getMessage()]), 'error');
+      \Drupal::logger('tmgmt_thebigword')->error('Error pulling the translations: @error', ['@error' => $e->getMessage()]);
     }
     finally {
       return [
