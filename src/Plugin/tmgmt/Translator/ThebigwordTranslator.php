@@ -487,7 +487,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       }
     }
     catch (TMGMTException $e) {
-      drupal_set_message('Could not pull translation resources.', [], 'error');
+      \Drupal::logger('tmgmt_thebigword')->error('Could not pull translation resources: @error', ['@error' => $e->getMessage()]);
     }
     if ($had_errors) {
       $this->confirmUpload($project_id, 'RestartPoint01');
