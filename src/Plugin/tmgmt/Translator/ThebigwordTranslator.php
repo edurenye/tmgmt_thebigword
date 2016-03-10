@@ -334,13 +334,6 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
         ['MetadataKey' => 'Response Service Path', 'MetadataValue' => $url->toString()],
       ],
     ];
-    if (!empty($job->getOwner()->getEmail())) {
-      $params['ProjectMetadata'][] = [
-        'MetadataKey' => 'CMS User Email',
-        'MetadataValue' => $job->getOwner()->getEmail(),
-
-      ];
-    }
     if ($job->getSetting('review')) {
       $params['ProjectMetadata'][] = [
         'MetadataKey' => 'Workflow Options',
