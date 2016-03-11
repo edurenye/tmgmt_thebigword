@@ -7,7 +7,6 @@
 
 namespace Drupal\tmgmt_thebigword;
 
-use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\tmgmt\Entity\RemoteMapping;
 use Drupal\tmgmt\TranslatorPluginUiBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -58,16 +57,11 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
     /** @var \Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
     $translator_plugin->setTranslator($job->getTranslator());
-    // @todo Replace the widget with one that just says in how many days you
-    // want it, as it does not work in continuous translator, also we should
-    // skip weekends.
-    /** @var \DateTime $default_datetime */
-    $default_datetime = new DrupalDateTime('+1 week');
     $settings['required_by'] = [
-      '#type' => 'datetime',
-      '#title' => t('Required By'),
-      '#description' => t('The date the project is required by. You will not get translations during the weekends.'),
-      '#default_value' => $job->getSetting('required_by') ? $job->getSetting('required_by') : $default_datetime,
+      '#type' => 'number',
+      '#title' => t('Required By (Days)'),
+      '#description' => t('In how many days the translation is required. You will not get translations during the weekends.'),
+      '#default_value' => $job->getSetting('required_by') ? $job->getSetting('required_by') : 7,
     ];
     $settings['quote_required'] = [
       '#type' => 'checkbox',

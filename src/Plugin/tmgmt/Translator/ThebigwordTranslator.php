@@ -197,9 +197,14 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
     $job = reset($job_items)->getJob();
     $this->setTranslator($job->getTranslator());
     $project_id = 0;
+    $required_by = $job->getSetting('required_by');
+    /** @var \DateTime $datetime */
+    $datetime = new DrupalDateTime('+' . $required_by . ' days');
+    $datetime->setTimezone(new \DateTimeZone('UTC'));
+    $datetime = $datetime->format('Y-m-d\TH:i:s');
 
     try {
-      $project_id = $this->newTranslationProject($job);
+      $project_id = $this->newTranslationProject($job, $datetime);
       $job->addMessage('Created a new project in thebigword with the id: @id', ['@id' => $project_id], 'debug');
 
       /** @var \Drupal\tmgmt\Entity\JobItem $job_item */
@@ -210,7 +215,10 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
           'tjiid' => $job_item->id(),
           'remote_identifier_1' => 'tmgmt_thebigword',
           'remote_identifier_2' => $project_id,
-          'files' => [],
+          'remote_data' => [
+            'files' => [],
+            'required_by' => $datetime,
+          ],
         ]);
         $remote_mapping->save();
         $this->sendFiles($job_item);
@@ -240,6 +248,9 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       }
       $job->rejected('Job has been rejected with following error: @error',
         ['@error' => $e->getMessage()], 'error');
+      if (isset($remote_mapping)) {
+        $remote_mapping->delete();
+      }
     }
   }
 
@@ -308,23 +319,21 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
    *
    * @param \Drupal\tmgmt\JobInterface $job
    *   The job.
+   * @param string $required_by
+   *   The date by when the translation is required.
    *
    * @return int
    *   Thebigword project id.
    *
    * @throws \Drupal\tmgmt\TMGMTException
    */
-  public function newTranslationProject(JobInterface $job) {
-    /** @var \DateTime $required_by */
-    $required_by = $job->getSetting('required_by');
-    $required_by->setTimezone(new \DateTimeZone('UTC'));
-    $datetime = $required_by->format('Y-m-d\TH:i:s');
+  public function newTranslationProject(JobInterface $job, $required_by) {
     $url = Url::fromRoute('tmgmt_thebigword.callback');
     $mail = empty($job->getOwner()->getEmail()) ? \Drupal::config('system.site')->get('mail') : $job->getOwner()->getEmail();
     $params = [
       'PurchaseOrderNumber' => $job->id(),
       'ProjectReference' => $job->id(),
-      'RequiredByDateUtc' => $datetime,
+      'RequiredByDateUtc' => $required_by,
       'QuoteRequired' => $job->getSetting('quote_required') ? 'true' : 'false',
       'SpecialismId' => $job->getSetting('category'),
       'ProjectMetadata' => [
@@ -408,14 +417,9 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
    * @throws \Drupal\tmgmt\TMGMTException
    */
   public function uploadFileResource($xliff, JobItemInterface $job_item, $project_id, $name) {
-
-    /** @var \DateTime $required_by */
-    $required_by = $job_item->getJob()->getSetting('required_by');
-    $required_by->setTimezone(new \DateTimeZone('UTC'));
-    $datetime = $required_by->format('Y-m-d\TH:i:s');
     $form_params = [
       'ProjectId' => $project_id,
-      'RequiredByDateUtc' => $datetime,
+      'RequiredByDateUtc' => $this->getRemoteData($project_id, 'required_by'),
       'SourceLanguage' => $job_item->getJob()->getRemoteSourceLanguage(),
       'TargetLanguage' => $job_item->getJob()->getRemoteTargetLanguage(),
       'FilePathAndName' => "$name.xliff",
@@ -535,13 +539,9 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
     $preview_data = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE PreviewUrl SYSTEM "http://www.thebigword.com/dtds/PreviewUrl.dtd">
 <PreviewUrl>' . $url->setAbsolute()->toString() . '</PreviewUrl>';
 
-    /** @var \DateTime $required_by */
-    $required_by = $job_item->getJob()->getSetting('required_by');
-    $required_by->setTimezone(new \DateTimeZone('UTC'));
-    $datetime = $required_by->format('Y-m-d\TH:i:s');
     $form_params = [
       'ProjectId' => $project_id,
-      'RequiredByDateUtc' => $datetime,
+      'RequiredByDateUtc' => $this->getRemoteData($project_id, 'required_by'),
       'SourceLanguage' => $job_item->getJob()->getRemoteSourceLanguage(),
       'TargetLanguage' => $job_item->getJob()->getRemoteTargetLanguage(),
       'FilePathAndName' => "$name.xml",
@@ -666,14 +666,9 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
    *   If there is a problem with the request.
    */
   public function sendFileError($state, $project_id, $file_id, JobInterface $job, $message = '', $confirm = FALSE) {
-
-    /** @var \DateTime $required_by */
-    $required_by = $job->getSetting('required_by');
-    $required_by->setTimezone(new \DateTimeZone('UTC'));
-    $datetime = (new DrupalDateTime())->format('Y-m-d\TH:i:s');
     $form_params = [
       'ProjectId' => $project_id,
-      'RequiredByDateUtc' => $datetime,
+      'RequiredByDateUtc' => $this->getRemoteData($project_id, 'required_by'),
       'SourceLanguage' => $job->getRemoteSourceLanguage(),
       'TargetLanguage' => $job->getRemoteTargetLanguage(),
       'FilePathAndName' => 'error-' . (new DrupalDateTime())->format('Y-m-d\TH:i:s') . '.txt',
@@ -748,6 +743,24 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       'FileState' => $state,
     ];
     return $confirmed = $this->request('fileinfos/uploaded', 'POST', $form_params);
+  }
+
+  /**
+   * Return the data with the data key of the mapping with the given Project ID.
+   *
+   * @param int $project_id
+   *   The project ID.
+   * @param string $data_key
+   *   The key of the data you want to retrieve from the mapping.
+   *
+   * @return mixed
+   *   The data stored in the mapping for that key.
+   */
+  protected function getRemoteData($project_id, $data_key) {
+    $mappings = RemoteMapping::loadByRemoteIdentifier('tmgmt_thebigword', $project_id);
+    /** @var \Drupal\tmgmt\Entity\RemoteMapping $mapping */
+    $mapping = reset($mappings);
+    return $mapping->getRemoteData($data_key);
   }
 
 }
