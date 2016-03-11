@@ -9,7 +9,6 @@ namespace Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator;
 
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
-use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
 use Drupal\tmgmt\ContinuousTranslatorInterface;
 use Drupal\tmgmt\Entity\JobItem;
@@ -185,8 +184,10 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
    * {@inheritdoc}
    */
   public function requestTranslation(JobInterface $job) {
-    $this->requestJobItemsTranslation($job->getItems());
-    $job->submitted();
+    $job = $this->requestJobItemsTranslation($job->getItems());
+    if (!$job->isRejected()) {
+      $job->submitted();
+    }
   }
 
   /**
@@ -209,7 +210,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
 
       /** @var \Drupal\tmgmt\Entity\JobItem $job_item */
       foreach ($job_items as $job_item) {
-        /** @var RemoteMapping $remote_mapping */
+        /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote_mapping */
         $remote_mapping = RemoteMapping::create([
           'tjid' => $job->id(),
           'tjiid' => $job_item->id(),
@@ -252,6 +253,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
         $remote_mapping->delete();
       }
     }
+    return $job;
   }
 
   /**
