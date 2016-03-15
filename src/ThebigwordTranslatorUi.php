@@ -26,6 +26,12 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
     /** @var \Drupal\tmgmt\TranslatorInterface $translator */
     $translator = $form_state->getFormObject()->getEntity();
 
+    $form['service_url'] = [
+      '#type' => 'textfield',
+      '#title' => t('Thebigword Web API endpoint'),
+      '#default_value' => $translator->getSetting('service_url'),
+      '#description' => t('Please enter the web API endpoint.'),
+    ];
     $form['client_contact_key'] = [
       '#type' => 'textfield',
       '#title' => t('Thebigword client contact key'),
