@@ -59,9 +59,10 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
     $translator_plugin->setTranslator($job->getTranslator());
     $settings['required_by'] = [
       '#type' => 'number',
-      '#title' => t('Required By (Days)'),
-      '#description' => t('In how many days the translation is required. You will not get translations during the weekends.'),
-      '#default_value' => $job->getSetting('required_by') ? $job->getSetting('required_by') : 7,
+      '#title' => t('Required By (Workdays days)'),
+      '#description' => t('In how many work days the translation is required.'),
+      '#default_value' => $job->getSetting('required_by') ? $job->getSetting('required_by') : 5,
+      '#min' => 1,
     ];
     $settings['quote_required'] = [
       '#type' => 'checkbox',
