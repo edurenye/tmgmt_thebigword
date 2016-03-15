@@ -199,9 +199,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
     $this->setTranslator($job->getTranslator());
     $project_id = 0;
     $required_by = $job->getSetting('required_by');
-    /** @var \DateTime $datetime */
-    $datetime = new DrupalDateTime('+' . $required_by . ' days');
-    $datetime->setTimezone(new \DateTimeZone('UTC'));
+    $datetime = new DrupalDateTime('+' . $required_by . ' weekday', 'UTC');
     $datetime = $datetime->format('Y-m-d\TH:i:s');
 
     try {
