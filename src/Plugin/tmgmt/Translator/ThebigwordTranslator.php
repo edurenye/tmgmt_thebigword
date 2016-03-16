@@ -121,6 +121,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
     catch (\Exception $e) {
       // Ignore exception, nothing we can do.
     }
+    asort($supported_remote_languages);
     return $supported_remote_languages;
   }
 
