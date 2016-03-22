@@ -18,7 +18,7 @@ use Drupal\tmgmt\JobItemInterface;
 use Drupal\tmgmt\SourcePreviewInterface;
 use Drupal\tmgmt\TMGMTException;
 use Drupal\tmgmt\TranslatorPluginBase;
-use GuzzleHttp\Exception\BadResponseException;
+use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use GuzzleHttp\ClientInterface;
 use Drupal\tmgmt\TranslatorInterface;
@@ -254,18 +254,21 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
    * @param string $path
    *   Resource path.
    * @param string $method
-   *   HTTP method (GET, POST...).
+   *   (Optional) HTTP method (GET, POST...). By default uses GET method.
    * @param array $params
-   *   Form parameters to send to thebigword service.
+   *   (Optional) Form parameters to send to thebigword service.
    * @param bool $download
-   *   If we expect resource to be downloaded.
+   *   (Optional) If we expect resource to be downloaded. FALSE by default.
+   * @param bool $code
+   *   (Optional) If we want to return the status code of the call. FALSE by
+   *   default.
    *
    * @return array
    *   Response array from thebigword.
    *
    * @throws \Drupal\tmgmt\TMGMTException
    */
-  public function request($path, $method = 'GET', $params = [], $download = FALSE) {
+  public function request($path, $method = 'GET', $params = [], $download = FALSE, $code = FALSE) {
     $options = [];
     if (!$this->translator) {
       throw new TMGMTException('There is no Translator entity. Access to the client contact key is not possible.');
@@ -285,12 +288,24 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       ];
       $response = $this->client->request($method, $url, $options);
     }
-    catch (BadResponseException $e) {
+    catch (RequestException $e) {
+      if (!$e->hasResponse()) {
+        if ($code) {
+          return $e->getCode();
+        }
+        throw new TMGMTException('Unable to connect to thebigword service due to following error: @error', ['@error' => $e->getMessage()], $e->getCode());
+      }
       $response = $e->getResponse();
+      if ($code) {
+        return $response->getStatusCode();
+      }
       // @todo Maybe add detailed info to the TMGMTException so we can provide
       // better info to thebigword.
       // debug($response->getBody()->getContents());
       throw new TMGMTException('Unable to connect to thebigword service due to following error: @error', ['@error' => $response->getReasonPhrase()], $response->getStatusCode());
+    }
+    if ($code) {
+      return $response->getStatusCode();
     }
 
     if ($response->getStatusCode() != 200) {

@@ -31,12 +31,16 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
       '#title' => t('Thebigword Web API endpoint'),
       '#default_value' => $translator->getSetting('service_url'),
       '#description' => t('Please enter the web API endpoint.'),
+      '#required' => TRUE,
+      '#placeholder' => 'https://example.thebigword.com/example/cms/api/1.0',
     ];
     $form['client_contact_key'] = [
       '#type' => 'textfield',
       '#title' => t('Thebigword client contact key'),
       '#default_value' => $translator->getSetting('client_contact_key'),
       '#description' => t('Please enter your client contact key.'),
+      '#required' => TRUE,
+      '#placeholder' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
     ];
     $form += parent::addConnectButton();
 
@@ -48,11 +52,20 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
    */
   public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
     parent::validateConfigurationForm($form, $form_state);
+    if ($form_state->hasAnyErrors()) {
+      return;
+    }
     /** @var \Drupal\tmgmt\TranslatorInterface $translator */
     $translator = $form_state->getFormObject()->getEntity();
-    $supported_remote_languages = $translator->getPlugin()->getSupportedRemoteLanguages($translator);
-    if (empty($supported_remote_languages)) {
+    /** @var \Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator $plugin */
+    $plugin = $translator->getPlugin();
+    $plugin->setTranslator($translator);
+    $result = $plugin->request('states', 'GET', [], FALSE, TRUE);
+    if ($result == 401) {
       $form_state->setErrorByName('settings][client_contact_key', t('The client contact key is not correct.'));
+    }
+    elseif ($result != 200) {
+      $form_state->setErrorByName('settings][service_url', t('The Web API endpoint is not correct.'));
     }
   }
 
