@@ -38,13 +38,6 @@ use Drupal\tmgmt\Translator\AvailableResult;
 class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFactoryPluginInterface, ContinuousTranslatorInterface {
 
   /**
-   * Translation service API version.
-   *
-   * @var string
-   */
-  const API_VERSION = '1';
-
-  /**
    * The translator.
    *
    * @var TranslatorInterface
@@ -278,7 +271,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       throw new TMGMTException('There is no Translator entity. Access to the client contact key is not possible.');
     }
 
-    $url = $this->translator->getSetting('service_url') . '/v' . self::API_VERSION . '/' . $path;
+    $url = $this->translator->getSetting('service_url') . '/' . $path;
 
     try {
       if ($method == 'GET') {
