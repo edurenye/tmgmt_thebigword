@@ -13,3 +13,11 @@ tmgmt_thebigword.no_preview:
     _controller: '\Drupal\tmgmt_thebigword\Controller\RemoteCallbackController::noPreview'
   requirements:
     _access: 'TRUE'
+
+tmgmt_thebigword.pull_all_remote_translations:
+  path: /pull_all_remote_translations
+  defaults:
+    _title: 'Pull all remote translations'
+    _controller: '\Drupal\tmgmt_thebigword\Controller\RemoteCallbackController::pullAllRemoteTrenslations'
+  requirements:
+    _permission: 'administer tmgmt+accept translation jobs'
