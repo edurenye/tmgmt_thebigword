@@ -1,15 +1,14 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\tmgmt_thebigword\Controller\RemoteCallbackController.
- */
-
 namespace Drupal\tmgmt_thebigword\Controller;
 
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\tmgmt\Entity\RemoteMapping;
+use Drupal\tmgmt\Entity\Translator;
+use Drupal\tmgmt\TMGMTException;
+use Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -71,6 +70,50 @@ class RemoteCallbackController extends ControllerBase {
    */
   public function noPreview(Request $request) {
     return new Response('No preview url available for this file.');
+  }
+
+  /**
+   * Pull all remote translations.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request to handle.
+   *
+   * @return \Symfony\Component\HttpFoundation\Response
+   *   The response to return.
+   */
+  public function pullAllRemoteTrenslations(Request $request) {
+    $translators = Translator::loadMultiple();
+    $updated = 0;
+    $non_updated = 0;
+
+    /** @var \Drupal\tmgmt\Entity\Translator $translator */
+    foreach ($translators as $translator) {
+      $translator_plugin = $translator->getPlugin();
+      if ($translator_plugin instanceof ThebigwordTranslator) {
+        try {
+          $result = $translator_plugin->pullAllRemoteTranslations($translator);
+          $updated += $result['updated'];
+          $non_updated += $result['non-updated'];
+        }
+        catch (TMGMTException $e) {
+          drupal_set_message(new TranslatableMarkup('Could not pull translation resources due to the following error: @message',
+            ['@message' => $e->getMessage()]), 'error');
+        }
+      }
+    }
+    if ($non_updated == 0 && $updated != 0) {
+      drupal_set_message(new TranslatableMarkup('Fetched @updated translation updates.', ['@updated' => $updated]));
+    }
+    elseif ($updated == 0) {
+      drupal_set_message(new TranslatableMarkup('Nothing has been updated.'));
+    }
+    else {
+      drupal_set_message(new TranslatableMarkup('Fetched @updated translation updates, @non-updated where not fetched.', [
+        '@updated' => $updated,
+        '@non-updated' => $non_updated,
+      ]));
+    }
+    return $this->redirect('view.tmgmt_translation_all_job_items.page_1');
   }
 
 }
