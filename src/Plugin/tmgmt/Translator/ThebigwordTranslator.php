@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator\ThebigwordTranslator.
- */
-
 namespace Drupal\tmgmt_thebigword\Plugin\tmgmt\Translator;
 
 use Drupal\Core\Datetime\DrupalDateTime;
@@ -215,6 +210,10 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
         ]);
         $remote_mapping->save();
         $this->sendFiles($job_item);
+
+        if ($job_item->getJob()->isContinuous()) {
+          $job_item->active();
+        }
       }
       // Confirm is required to trigger the translation.
       $confirmed = $this->confirmUpload($project_id, 'ReferenceAdd');
@@ -226,10 +225,6 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       if ($confirmed != count($job_items)) {
         $message = 'Not all the sources had been confirmed.';
         throw new TMGMTException($message);
-      }
-
-      if ($job->isContinuous()) {
-        $job_item->active();
       }
     }
     catch (TMGMTException $e) {
