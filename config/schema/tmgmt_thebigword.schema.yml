@@ -1,9 +1,0 @@
-tmgmt.translator.settings.thebigword:
-  type: tmgmt.translator_base
-  mapping:
-    client_contact_key:
-      type: string
-      label: Thebigword client contact key
-    service_url:
-      type: string
-      label: URL of thebigword translation service.

@@ -5,29 +5,115 @@
  * Module file of the Translation Management thebigword module.
  */
 
-use Drupal\Core\Form\FormStateInterface;
-use Drupal\tmgmt\Entity\RemoteMapping;
+/**
+ * Implements hook_tmgmt_translator_plugin_info().
+ */
+function tmgmt_thebigword_tmgmt_translator_plugin_info() {
+  return array(
+    'thebigword' => array(
+      'label' => t('TheBigWord translator'),
+      'description' => t('A TheBigWord translator service.'),
+      'plugin controller class' => 'TMGMTTheBigWordPluginController',
+      'ui controller class' => 'TMGMTTheBigWordTranslatorUIController',
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function tmgmt_thebigword_menu() {
+  return array(
+    'tmgmt_thebigword_callback' => array(
+      'title' => 'TMGMT Thebigword Callback',
+      'description' => '',
+      'page callback' => 'tmgmt_thebigword_callback',
+      'access callback' => TRUE,
+      'type' => MENU_CALLBACK,
+    ),
+  );
+}
+
+/**
+ * Callback for TheBigWord requests.
+ */
+function tmgmt_thebigword_callback() {
+  $project_id = $_POST['ProjectId'];
+  $file_id = $_POST['FileId'];
+  if (isset($project_id) && isset($file_id)) {
+    // Get mappings between the job items and the file IDs, for the project.
+    /** @var TMGMTRemoteController $remote_mapping_controller */
+    $remote_mapping_controller = entity_get_controller('tmgmt_remote');
+    $remotes = $remote_mapping_controller->loadByRemoteIdentifier('tmgmt_thebigword', $project_id);
+    if (empty($remotes)) {
+      watchdog('tmgmt_thebigword', 'Project %id not found', array('%id' => $project_id), WATCHDOG_WARNING);
+      return new HttpResponse(t('Project %id not found', array('%id' => $project_id)), 404);
+    }
+    /** @var TMGMTRemote $remote */
+    foreach ($remotes as $remote) {
+      $files = $remote->getRemoteData('files');
+      if (!isset($files[$file_id])) {
+        watchdog('tmgmt_thebigword', 'File %id not found', array('%id' => $file_id), WATCHDOG_WARNING);
+        return new HttpResponse(t('File %id not found', array('%id' => $file_id)), 404);
+      }
+    }
+
+    /** @var TMGMTTheBigWordPluginController $translator_plugin */
+    $translator_plugin = $remote->getJob()->getTranslator()->plugin;
+    $translator_plugin->getConnector($remote->getJob()->getTranslator())->setTranslator($remote->getJob()->getTranslator());
+
+    $info = $translator_plugin->getConnector($remote->getJob()->getTranslator())->request('fileinfo/' . $file_id);
+    $translator_plugin->getConnector($remote->getJob()->getTranslator())->fetchTranslatedFiles($remote->getJob(), $info['FileState'], $project_id);
+  }
+  else {
+    return new HttpResponse('Bad request.', 400);
+  }
+  return new HttpResponse();
+}
+
+/**
+ * Validation callback for the plugin settings form.
+ */
+function tmgmt_thebigword_plugin_settings_form_validate($element, &$form_state, $form) {
+  $settings = $form_state['values']['settings'];
+  /** @var TMGMTTranslator $translator */
+  $translator = $form_state['tmgmt_translator'];
+  // Update translator settings with form data.
+  $translator->settings = $settings;
+  /** @var TMGMTTheBigWordPluginController $controller */
+  $controller = $translator->getController();
+  $controller->getConnector($translator)->setTranslator($translator);
+  $result = $controller->getConnector($translator)->request('states', 'GET', array(), FALSE, TRUE);
+  if ($result == 401) {
+    form_error($element, t('The client contact key is not correct.'));
+  }
+  elseif ($result != 200) {
+    form_error($element, t('The Web API endpoint is not correct.'));
+  }
+}
 
 /**
  * Implements hook_form_FORM_ID_alter().
  */
-function tmgmt_thebigword_form_tmgmt_job_edit_form_alter(&$form, FormStateInterface $form_state) {
-  /** @var \Drupal\tmgmt\JobInterface $job */
+function tmgmt_thebigword_form_tmgmt_job_edit_form_alter(&$form, &$form_state) {
+  /** @var TMGMTJob $job */
   $job = $form_state->getFormObject()->getEntity();
-  if ($job->getTranslatorPlugin()->getPluginId() == 'thebigword' && !$job->isContinuous()) {
-    $remotes = RemoteMapping::loadByLocalData($job->id());
+  if ($job->getTranslatorPlugin()->getPluginId() == 'thebigword') {
+    /** @var TMGMTRemoteController $remote_mapping_controller */
+    $remote_mapping_controller = entity_get_controller('tmgmt_remote');
+    $remotes = $remote_mapping_controller->loadByLocalData($job->tjid);
     if (count($remotes) == 1) {
-      /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote */
+      /** @var TMGMTRemote $remote */
       $remote = reset($remotes);
-      $project_id = $remote->getRemoteIdentifier2();
-      $form['info'][] = [
+      $project_id = $remote->remote_identifier_2;
+      $form['info'][] = array(
         '#type' => 'item',
         '#title' => t('Project ID'),
         '#markup' => $project_id,
         '#prefix' => '<div id="tmgmt-ui-thebigword-project-id" class="tmgmt-ui-thebigword-project-id tmgmt-ui-info-item">',
         '#suffix' => '</div>',
         '#value' => $project_id,
-      ];
+      );
     }
   }
 }
@@ -35,33 +121,115 @@ function tmgmt_thebigword_form_tmgmt_job_edit_form_alter(&$form, FormStateInterf
 /**
  * Implements hook_form_FORM_ID_alter().
  */
-function tmgmt_thebigword_form_tmgmt_job_item_edit_form_alter(&$form, FormStateInterface $form_state) {
-  /** @var \Drupal\tmgmt\JobItemInterface $job_item */
+function tmgmt_thebigword_form_tmgmt_job_item_edit_form_alter(&$form, &$form_state) {
+  /** @var TMGMTJobItem $job_item */
   $job_item = $form_state->getFormObject()->getEntity();
   if ($job_item->getTranslatorPlugin()->getPluginId() == 'thebigword') {
-    $remotes = RemoteMapping::loadByLocalData($job_item->getJobId(), $job_item->id());
+    /** @var TMGMTRemoteController $remote_mapping_controller */
+    $remote_mapping_controller = entity_get_controller('tmgmt_remote');
+    $remotes = $remote_mapping_controller->loadByLocalData($job_item->tjid, $job_item->tjiid);
     if (!empty($remotes)) {
-      /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote */
+      /** @var TMGMTRemote $remote */
       $remote = reset($remotes);
-      $project_id = $remote->getRemoteIdentifier2();
-      $form['info'][] = [
+      $project_id = $remote->remote_identifier_2;
+      $form['info'][] = array(
         '#type' => 'item',
         '#title' => t('Project ID'),
         '#markup' => $project_id,
         '#prefix' => '<div id="tmgmt-ui-thebigword-project-id" class="tmgmt-ui-thebigword-project-id tmgmt-ui-info-item">',
         '#suffix' => '</div>',
         '#value' => $project_id,
-      ];
-      $files = $remote->getRemoteData('files');
-      $file_id = reset($files)['FileId'];
-      $form['info'][] = [
+      );
+      $files = reset($remote->getRemoteData('files'));
+
+      $file_id = $files['FileId'];
+      $form['info'][] = array(
         '#type' => 'item',
         '#title' => t('File ID'),
         '#markup' => $file_id,
         '#prefix' => '<div id="tmgmt-ui-thebigword-file-id" class="tmgmt-ui-thebigword-file-id tmgmt-ui-info-item">',
         '#suffix' => '</div>',
         '#value' => $file_id,
-      ];
+      );
     }
+  }
+}
+
+/**
+ * Submit callback to pull translations form TheBigWord.
+ */
+function _tmgmt_thebigword_pull_submit($form, &$form_state) {
+  $translated = 0;
+  $untranslated = 0;
+  /** @var TMGMTJob $job */
+  $job = $form_state->getFormObject()->getEntity();
+
+  /** @var TMGMTRemoteController $remote_mapping_controller */
+  $remote_mapping_controller = entity_get_controller('tmgmt_remote');
+  $result = $remote_mapping_controller->loadByLocalData($job->tjid);
+  $remote = reset($result);
+  $project_id = $remote->getRemoteIdentifier2();
+
+  /** @var TMGMTTheBigWordPluginController $translator_plugin */
+  $translator_plugin = $job->getTranslator()->plugin;
+  $result = $translator_plugin->fetchTranslatedFiles($job, 'TranslatableReviewPreview', $project_id);
+  $translated += $result['translated'];
+  $untranslated += $result['untranslated'];
+  $result = $translator_plugin->fetchTranslatedFiles($job, 'TranslatableComplete', $project_id);
+  $translated += $result['translated'];
+  $untranslated += $result['untranslated'];
+  if ($untranslated == 0 && $translated != 0) {
+    $job->addMessage('Fetched translations for @translated job items.', array('@translated' => $translated));
+  }
+  else {
+    if ($translated == 0) {
+      drupal_set_message('No job item has been translated yet.');
+    }
+    else {
+      $job->addMessage('Fetched translations for @translated job items, @untranslated are not translated yet.', array(
+        '@translated' => $translated,
+        '@untranslated' => $untranslated,
+      ));
+    }
+  }
+  tmgmt_ui_write_request_messages($job);
+}
+
+/**
+ * Return the data with the data key of the mapping with the given Project ID.
+ *
+ * @param int $project_id
+ *   The project ID.
+ * @param string $data_key
+ *   The key of the data you want to retrieve from the mapping.
+ *
+ * @return mixed
+ *   The data stored in the mapping for that key.
+ */
+function tmgmt_thebigword_get_remote_data($project_id, $data_key) {
+  /** @var TMGMTRemoteController $remote_mapping_controller */
+  $remote_mapping_controller = entity_get_controller('tmgmt_remote');
+  $mappings = $remote_mapping_controller->loadByRemoteIdentifier('tmgmt_thebigword', $project_id);
+  if (!empty($mappings)) {
+    /** @var TMGMTRemote $mapping */
+    $mapping = reset($mappings);
+    return $mapping->getRemoteData($data_key);
+  }
+  return NULL;
+}
+
+/**
+ * TMGMT TheBigWord Exception class
+ */
+class TMGMTTheBigWordException extends Exception {
+
+  /**
+   * @param string $message
+   * @param array $data
+   *   Associative array of dynamic data that will be inserted into $message.
+   * @param int $code
+   */
+  function __construct($message = "", $data = array(), $code = 0) {
+    parent::__construct(strtr($message, $data), $code);
   }
 }
