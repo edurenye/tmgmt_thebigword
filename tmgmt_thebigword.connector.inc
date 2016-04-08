@@ -185,7 +185,7 @@ class TheBigWordConnector {
    * @throws TMGMTException
    */
   public function newTranslationProject(TMGMTJob $job, $required_by) {
-    $url = url('tmgmt_thebigword_callback', array('absolute' => TRUE));
+    $url = url('tmgmt_thebigword_callback', array('absolute' => FALSE));
     $email = user_load($job->uid)->mail;
     $email = empty($email) ? variable_get('site_mail', ini_get('sendmail_from')) : $email;
     $params = array(
@@ -197,7 +197,7 @@ class TheBigWordConnector {
       'ProjectMetadata' => array(
         array('MetadataKey' => 'CMS User Name', 'MetadataValue' => user_load($job->uid)->name),
         array('MetadataKey' => 'CMS User Email', 'MetadataValue' => $email),
-        array('MetadataKey' => 'Response Service Base URL', 'MetadataValue' => $GLOBALS['base_url'] . base_path()),
+        array('MetadataKey' => 'Response Service Base URL', 'MetadataValue' => $GLOBALS['base_url']),
         array('MetadataKey' => 'Response Service Path', 'MetadataValue' => $url),
       ),
     );

@@ -38,8 +38,8 @@ function tmgmt_thebigword_menu() {
  * Callback for TheBigWord requests.
  */
 function tmgmt_thebigword_callback() {
-  $project_id = $_POST['ProjectId'];
-  $file_id = $_POST['FileId'];
+  $project_id = $_GET['ProjectId'];
+  $file_id = $_GET['FileId'];
   if (isset($project_id) && isset($file_id)) {
     // Get mappings between the job items and the file IDs, for the project.
     /** @var TMGMTRemoteController $remote_mapping_controller */
@@ -59,7 +59,7 @@ function tmgmt_thebigword_callback() {
     }
 
     /** @var TMGMTTheBigWordPluginController $translator_plugin */
-    $translator_plugin = $remote->getJob()->getTranslator()->plugin;
+    $translator_plugin = $remote->getJob()->getTranslatorController();
     $info = $translator_plugin->getConnector($remote->getJob()->getTranslator())->request('fileinfo/' . $file_id);
     $translator_plugin->getConnector($remote->getJob()->getTranslator())->fetchTranslatedFiles($remote->getJob(), $info['FileState'], $project_id);
   }
