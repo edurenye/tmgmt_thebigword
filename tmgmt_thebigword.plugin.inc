@@ -14,7 +14,7 @@ class TMGMTTheBigWordPluginController extends TMGMTDefaultTranslatorPluginContro
    * Implements TMGMTTranslatorPluginControllerInterface::getSupportedLanguages().
    */
   public function getSupportedRemoteLanguages(TMGMTTranslator $translator) {
-    return $this->getConnector($translator)->getSupportedRemoteLanguages($translator);
+    return $this->getConnector($translator)->getSupportedRemoteLanguages();
   }
 
   /**
@@ -83,55 +83,6 @@ class TMGMTTheBigWordPluginController extends TMGMTDefaultTranslatorPluginContro
   }
 
   /**
-   * Fetches translations for job items of a given job.
-   *
-   * @param TMGMTJob $job
-   *   A job containing job items that translations will be fetched for.
-   *
-   * @return bool
-   *   Returns TRUE if there are error messages during the process of retrieving
-   *   translations. Otherwise FALSE.
-   */
-  public function fetchJobs(TMGMTJob $job) {
-    // Search for placeholder item.
-    $remotes = entity_get_controller('tmgmt_remote')->loadByLocalData($job->tjid);
-
-    // Get job items of a given job.
-    $job_items = $job->getItems();
-    $translated = 0;
-    $not_translated = 0;
-
-    try {
-      // Loop over job items and check for if there is a translation available.
-      foreach ($remotes as $remote) {
-        $job_item = $job_items[$remote->tjiid];
-        if (empty($remote->remote_identifier_1)) {
-          $not_translated++;
-          $job_item->addMessage('Could not retrieve project information.', array(), 'error');
-          continue;
-        }
-        $project_details = $this->getConnector($job->getTranslator())->getProjectDetails($remote->remote_identifier_1);
-        if (isset($project_details['resources']['translations'])) {
-          $this->retrieveTranslation((array) $project_details['resources']['translations'], $job_item, $project_details['project_id'], FALSE);
-          $translated++;
-        }
-        else {
-          $not_translated++;
-        }
-      }
-
-      if (empty($not_translated)) {
-        $job->addMessage('Fetched translations for @translated job items.', array('@translated' => $translated));
-      }
-      else {
-        $job->addMessage('Fetched translations for @translated job items, @not_translated are not translated yet.', array('@translated' => $translated, '@not_translated' => $not_translated));
-      }
-    } catch (TMGMTTheBigWordException $e) {
-      $job->addMessage('Could not pull translation resources.', array(), 'error');
-    }
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function defaultSettings() {
@@ -153,7 +104,8 @@ class TMGMTTheBigWordPluginController extends TMGMTDefaultTranslatorPluginContro
   public function getConnector(TMGMTTranslator $translator) {
     return new TheBigWordConnector(
       $translator->getSetting('service_url'),
-      $translator->getSetting('client_contact_key')
+      $translator->getSetting('client_contact_key'),
+      $translator
     );
   }
 

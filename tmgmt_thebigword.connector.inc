@@ -18,28 +18,19 @@ class TheBigWordConnector {
    *   TheBigWord service URL.
    * @param $client_contact_key
    *   TheBigWord Client Contact Key.
+   * @param $translator
    */
-  function __construct($service_url, $client_contact_key) {
+  function __construct($service_url, $client_contact_key, $translator) {
     $this->serviceUrl = $service_url;
     $this->clientContactKey = $client_contact_key;
-  }
-
-  /**
-   * Sets a Translator.
-   *
-   * @param TMGMTTranslator $translator
-   *   The translator to set.
-   */
-  public function setTranslator(TMGMTTranslator $translator) {
     $this->translator = $translator;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getSupportedRemoteLanguages(TMGMTTranslator $translator) {
+  public function getSupportedRemoteLanguages() {
     $supported_remote_languages = array();
-    $this->setTranslator($translator);
 
     if (empty($this->clientContactKey)) {
       return $supported_remote_languages;
@@ -50,7 +41,7 @@ class TheBigWordConnector {
 
       // Parse languages.
       foreach ($supported_languages as $language) {
-        $supported_remote_languages[$language['CultureName']] = $language['DisplayName'];
+        $supported_remote_languages[$language['CultureName']] = $language['CultureName'];
       }
     }
     catch (\Exception $e) {
@@ -153,7 +144,7 @@ class TheBigWordConnector {
     else {
       $options['headers']['Content-Type'] = 'application/json';
       $options['data'] = json_encode($params);
-      $options['method'] = 'POST';
+      $options['method'] = $method;
     }
     try {
       $response = drupal_http_request($url, $options);
@@ -238,7 +229,7 @@ class TheBigWordConnector {
 
     $job_item_id = $job_item->tjiid;
     $target_language = $job_item->getJob()->target_language;
-    $target_language = $job_item->getJob()->getTranslatorController()->mapToRemoteLanguage($job_item->getJob()->getTranslator(), $target_language);
+    $target_language = $job_item->getJob()->getTranslator()->mapToRemoteLanguage($target_language);
     $conditions = array('tjiid' => array('value' => $job_item_id));
     $xliff = $xliff_converter->export($job_item->getJob(), $conditions);
     $name = "JobID_{$job_item->tjid}_JobItemID_{$job_item_id}_{$job_item->getJob()->source_language}_{$target_language}";
@@ -281,9 +272,9 @@ class TheBigWordConnector {
    */
   public function uploadFileResource($xliff, TMGMTJobItem $job_item, $project_id, $name) {
     $target_language = $job_item->getJob()->target_language;
-    $target_language = $job_item->getJob()->getTranslatorController()->mapToRemoteLanguage($job_item->getJob()->getTranslator(), $target_language);
+    $target_language = $job_item->getJob()->getTranslator()->mapToRemoteLanguage($target_language);
     $source_language = $job_item->getJob()->source_language;
-    $source_language = $job_item->getJob()->getTranslatorController()->mapToRemoteLanguage($job_item->getJob()->getTranslator(), $source_language);
+    $source_language = $job_item->getJob()->getTranslator()->mapToRemoteLanguage($source_language);
 
     $form_params = array(
       'ProjectId' => $project_id,
@@ -331,7 +322,6 @@ class TheBigWordConnector {
    *   retrieving translations. Otherwise FALSE.
    */
   public function fetchTranslatedFiles(TMGMTJob $job, $state, $project_id) {
-    $this->setTranslator($job->getTranslator());
     $translated = 0;
     $had_errors = FALSE;
 
@@ -345,7 +335,7 @@ class TheBigWordConnector {
         $file_id = $file['FileId'];
         if (isset($files[$file_id])) {
           try {
-            $this->addFileDataToJob($job, $state, $project_id, $file_id);
+            $this->addFileDataToJob($job, $state, $file_id);
           }
           catch (TMGMTException $e) {
             $this->sendFileError('RestartPoint01', $project_id, $file_id, $job_item->getJob(), $e->getMessage());
@@ -394,14 +384,17 @@ class TheBigWordConnector {
       $uri = url('tmgmt_thebigword_no_preview', array('absolute' => TRUE));
     }
     $preview_data = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE PreviewUrl SYSTEM "http://www.thebigword.com/dtds/PreviewUrl.dtd">
-<PreviewUrl>' . $uri . '</PreviewUrl>';
+<PreviewUrl>' . $GLOBALS['base_url'] . base_path() . $uri['path'] . '</PreviewUrl>';
 
-    $remote_mappings = $job_item->getJob()->getRemoteMappings();
+    $target_language = $job_item->getJob()->target_language;
+    $target_language = $job_item->getJob()->getTranslator()->mapToRemoteLanguage($target_language);
+    $source_language = $job_item->getJob()->source_language;
+    $source_language = $job_item->getJob()->getTranslator()->mapToRemoteLanguage($source_language);
     $form_params = array(
       'ProjectId' => $project_id,
       'RequiredByDateUtc' => tmgmt_thebigword_get_remote_data($project_id, 'required_by'),
-      'SourceLanguage' => $remote_mappings[$job_item->getJob()->source_language],
-      'TargetLanguage' => $remote_mappings[$job_item->getJob()->target_language],
+      'SourceLanguage' => $source_language,
+      'TargetLanguage' => $target_language,
       'FilePathAndName' => "$name.xml",
       'FileState' => $state,
       'FileData' => base64_encode($preview_data),
@@ -415,13 +408,13 @@ class TheBigWordConnector {
   /**
    * {@inheritdoc}
    */
-  public function pullAllRemoteTranslations(TMGMTTranslator $translator) {
+  public function pullAllRemoteTranslations() {
     $translated = 0;
     $untranslated = 0;
-    $result = $this->pullAllRemoteTranslationsForStatus($translator, 'TranslatableReviewPreview');
+    $result = $this->pullAllRemoteTranslationsForStatus('TranslatableReviewPreview');
     $translated += $result['updated'];
     $untranslated += $result['non-updated'];
-    $result = $this->pullAllRemoteTranslationsForStatus($translator, 'TranslatableComplete');
+    $result = $this->pullAllRemoteTranslationsForStatus('TranslatableComplete');
     $translated += $result['updated'];
     $untranslated -= $result['updated'];
     return array(
@@ -433,8 +426,7 @@ class TheBigWordConnector {
   /**
    * {@inheritdoc}
    */
-  public function pullAllRemoteTranslationsForStatus(TMGMTTranslator $translator, $status) {
-    $this->setTranslator($translator);
+  public function pullAllRemoteTranslationsForStatus($status) {
     $translated = 0;
     $not_translated = 0;
 
@@ -450,7 +442,7 @@ class TheBigWordConnector {
         $remote = reset($remotes);
         $ids = $remote->getRemoteData('files');
         if ($remote != NULL && isset($ids[$file_id]) && $file['FileStateVersion'] == $ids[$file_id]['FileStateVersion']) {
-          $this->addFileDataToJob($remote->getJob(), $status, $project_id, $file_id);
+          $this->addFileDataToJob($remote->getJob(), $status, $file_id);
           $translated++;
         }
         else {
@@ -538,9 +530,9 @@ class TheBigWordConnector {
   public function sendFileError($state, $project_id, $file_id, TMGMTJob $job, $message = '', $confirm = FALSE) {
     $date = new DateTime();
     $target_language = $job->target_language;
-    $target_language = $job->getTranslatorController()->mapToRemoteLanguage($job->getTranslator(), $target_language);
+    $target_language = $job->getTranslator()->mapToRemoteLanguage($target_language);
     $source_language = $job->source_language;
-    $source_language = $job->getTranslatorController()->mapToRemoteLanguage($job->getTranslator(), $source_language);
+    $source_language = $job->getTranslator()->mapToRemoteLanguage($source_language);
 
     $form_params = array(
       'ProjectId' => $project_id,
@@ -565,8 +557,6 @@ class TheBigWordConnector {
    *   The Job to which will be added the data.
    * @param string $state
    *   The state of the file.
-   * @param int $project_id
-   *   The project ID.
    * @param string $file_id
    *   The file ID.
    *
