@@ -34,7 +34,7 @@ function tmgmt_thebigword_menu() {
     'admin/tmgmt/overview/tmgmt_thebigword_pull_all_remote' => array(
       'title' => 'Pull all thebigword translations',
       'page callback' => 'tmgmt_thebigword_pull_all_remote',
-      'access arguments' => array('administer tmgmt+accept translation jobs'),
+      'access callback' => 'tmgmt_thebigword_pull_access',
       'type' => MENU_LOCAL_ACTION,
     ),
   );
@@ -111,6 +111,19 @@ function tmgmt_thebigword_pull_all_remote() {
     )));
   }
   drupal_goto('admin/tmgmt/overview');
+}
+
+/**
+ * Determine whether the user can pull remote translations.
+ *
+ * @param $account
+ *   (optional) The account to check, if not given use currently logged in user.
+ *
+ * @return boolean
+ *   Returns TRUE if the current user can pull remote translations.
+ */
+function tmgmt_thebigword_pull_access($account = NULL) {
+  return user_access('administer tmgmt', $account) || user_access('accept translation jobs', $account);
 }
 
 /**
