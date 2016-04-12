@@ -31,6 +31,12 @@ function tmgmt_thebigword_menu() {
       'access callback' => TRUE,
       'type' => MENU_CALLBACK,
     ),
+    'admin/tmgmt/overview/tmgmt_thebigword_pull_all_remote' => array(
+      'title' => 'Pull all thebigword translations',
+      'page callback' => 'tmgmt_thebigword_pull_all_remote',
+      'access arguments' => array('administer tmgmt+accept translation jobs'),
+      'type' => MENU_LOCAL_ACTION,
+    ),
   );
 }
 
@@ -67,6 +73,44 @@ function tmgmt_thebigword_callback() {
     return new HttpResponse('Bad request.', 400);
   }
   return new HttpResponse();
+}
+
+/**
+ * Callback for TheBigWord requests.
+ */
+function tmgmt_thebigword_pull_all_remote() {
+  $translators = entity_load('tmgmt_translator');
+  $updated = 0;
+  $non_updated = 0;
+
+  /** @var TMGMTTranslator $translator */
+  foreach ($translators as $translator) {
+    $translator_plugin = $translator->getController();
+    if ($translator_plugin instanceof TMGMTTheBigWordPluginController) {
+      try {
+        $result = $translator_plugin->getConnector($translator)->pullAllRemoteTranslations();
+        $updated += $result['updated'];
+        $non_updated += $result['non-updated'];
+      }
+      catch (TMGMTException $e) {
+        drupal_set_message(t('Could not pull translation resources due to the following error: @message',
+          array('@message' => $e->getMessage())), 'error');
+      }
+    }
+  }
+  if ($non_updated == 0 && $updated != 0) {
+    drupal_set_message(t('Fetched @updated translation updates.', array('@updated' => $updated)));
+  }
+  elseif ($updated == 0) {
+    drupal_set_message(t('Nothing has been updated.'));
+  }
+  else {
+    drupal_set_message(t('Fetched @updated translation updates, @non-updated where not fetched.', array(
+      '@updated' => $updated,
+      '@non-updated' => $non_updated,
+    )));
+  }
+  drupal_goto('admin/tmgmt/overview');
 }
 
 /**

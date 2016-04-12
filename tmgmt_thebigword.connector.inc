@@ -411,12 +411,9 @@ class TheBigWordConnector {
   public function pullAllRemoteTranslations() {
     $translated = 0;
     $untranslated = 0;
-    $result = $this->pullAllRemoteTranslationsForStatus('TranslatableReviewPreview');
-    $translated += $result['updated'];
-    $untranslated += $result['non-updated'];
     $result = $this->pullAllRemoteTranslationsForStatus('TranslatableComplete');
     $translated += $result['updated'];
-    $untranslated -= $result['updated'];
+    $untranslated -= $result['non-updated'];
     return array(
       'updated' => $translated,
       'non-updated' => $untranslated,
