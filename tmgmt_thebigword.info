@@ -1,0 +1,9 @@
+name = 'Thebigword translator'
+description = 'Thebigword service plugin for TMGMT. Sign up at <a href="http://thebigword.com/">thebigword.com</a>!'
+package = 'Translation Management'
+core = 7.x
+dependencies[] = tmgmt
+
+files[] = tmgmt_thebigword.connector.inc
+files[] = tmgmt_thebigword.plugin.inc
+files[] = tmgmt_thebigword.ui.inc
