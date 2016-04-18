@@ -11,8 +11,8 @@
 function tmgmt_thebigword_tmgmt_translator_plugin_info() {
   return array(
     'thebigword' => array(
-      'label' => t('TheBigWord translator'),
-      'description' => t('A TheBigWord translator service.'),
+      'label' => t('thebigword Connector for Drupal'),
+      'description' => t('thebigword translation service enabled by thebigword Connector for Drupal.'),
       'plugin controller class' => 'TMGMTTheBigWordPluginController',
       'ui controller class' => 'TMGMTTheBigWordTranslatorUIController',
     ),
