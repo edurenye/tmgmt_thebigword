@@ -471,6 +471,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       /** @var JobItemInterface $job_item */
       foreach ($job->getItems() as $job_item) {
         $mappings = RemoteMapping::loadByLocalData($job->id(), $job_item->id());
+        /** @var \Drupal\tmgmt\Entity\RemoteMapping $mapping */
         $mapping = reset($mappings);
         $ids = $mapping->getRemoteData('files');
         $file_id = reset($ids)['FileId'];
@@ -562,7 +563,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
     $untranslated += $result['non-updated'];
     $result = $this->pullAllRemoteTranslationsForStatus($translator, 'TranslatableComplete');
     $translated += $result['updated'];
-    $untranslated -= $result['updated'];
+    $untranslated -= $result['non-updated'];
     return [
       'updated' => $translated,
       'non-updated' => $untranslated,
