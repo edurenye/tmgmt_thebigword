@@ -1,5 +1,5 @@
-name: 'Thebigword translator'
-description: 'Thebigword service plugin for TMGMT. Sign up at <a href="http://thebigword.com/">thebigword.com</a>!'
+name: 'thebigword Connector for Drupal'
+description: 'thebigword Connector for Drupal service plugin for TMGMT. Sign up at <a href="http://thebigword.com/">thebigword.com</a>!'
 package: 'Translation Management'
 core: 8.x
 dependencies:

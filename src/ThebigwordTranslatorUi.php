@@ -28,7 +28,7 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
 
     $form['service_url'] = [
       '#type' => 'textfield',
-      '#title' => t('Thebigword Web API endpoint'),
+      '#title' => t('thebigword Web API endpoint'),
       '#default_value' => $translator->getSetting('service_url'),
       '#description' => t('Please enter the web API endpoint.'),
       '#required' => TRUE,
@@ -36,7 +36,7 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
     ];
     $form['client_contact_key'] = [
       '#type' => 'textfield',
-      '#title' => t('Thebigword client contact key'),
+      '#title' => t('thebigword client contact key'),
       '#default_value' => $translator->getSetting('client_contact_key'),
       '#description' => t('Please enter your client contact key.'),
       '#required' => TRUE,
@@ -79,27 +79,27 @@ class ThebigwordTranslatorUi extends TranslatorPluginUiBase {
     $settings['required_by'] = [
       '#type' => 'number',
       '#title' => t('Required By (Workdays days)'),
-      '#description' => t('In how many work days the translation is required.'),
+      '#description' => t('Enter the number of working days before the translation is required.'),
       '#default_value' => $job->getSetting('required_by') ? $job->getSetting('required_by') : 5,
       '#min' => 1,
     ];
     $settings['quote_required'] = [
       '#type' => 'checkbox',
-      '#title' => t('Quote required'),
-      '#description' => t('Is the quote required?'),
+      '#title' => t('Quotation required before translation.'),
+      '#description' => t('If this is selected a quote will be provided for acceptance before translation work begins.'),
       '#default_value' => $job->getSetting('quote_required') ? $job->getSetting('quote_required') : FALSE,
     ];
     $settings['category'] = [
       '#type' => 'select',
       '#title' => t('Category'),
-      '#description' => t('Select a category to identify the area of the text you will request to translate.'),
+      '#description' => t('Select the content category type. This is used to help select linguists with appropriate subject matter knowledge. Translation of specialist content (other than Generic/Universal) can affect the overall translation costs.'),
       '#options' => $translator_plugin->getCategory($job),
       '#default_value' => $job->getSetting('category'),
     ];
     $settings['review'] = [
       '#type' => 'checkbox',
-      '#title' => t('Review'),
-      '#description' => t('Set the project as reviewable.'),
+      '#title' => t('Review with thebigword Review Tool'),
+      '#description' => t('Indicate that the project is to be reviewed by nominated reviewers* before return to Drupal.<br><br>*Nominated Reviewers are defined by prior discussion with thebigword.'),
       '#default_value' => $job->getSetting('review') ? $job->getSetting('review') : TRUE,
     ];
 
