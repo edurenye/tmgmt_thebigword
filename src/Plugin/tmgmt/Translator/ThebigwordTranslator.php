@@ -270,6 +270,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
     }
 
     $url = $this->translator->getSetting('service_url') . '/' . $path;
+    $config = \Drupal::configFactory()->get('tmgmt_thebigword.settings');
 
     try {
       if ($method == 'GET') {
@@ -291,13 +292,39 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
         throw new TMGMTException('Unable to connect to thebigword service due to following error: @error', ['@error' => $e->getMessage()], $e->getCode());
       }
       $response = $e->getResponse();
+      if ($config->get('debug')) {
+        \Drupal::logger('tmgmt_thebigword')->error('%method Request to %url:<br>
+            <ul>
+                <li>Request: %request</li>
+                <li>Response: %response</li>
+            </ul>
+            ', [
+              '%method' => $method,
+              '%url' => $url,
+              '%request' => $e->getRequest(),
+              '%response' => $response->getBody()->getContents(),
+            ]
+        );
+      }
       if ($code) {
         return $response->getStatusCode();
       }
-      // @todo Maybe add detailed info to the TMGMTException so we can provide
-      // better info to thebigword.
-      // debug($response->getBody()->getContents());
       throw new TMGMTException('Unable to connect to thebigword service due to following error: @error', ['@error' => $response->getReasonPhrase()], $response->getStatusCode());
+    }
+    $received_data = $response->getBody()->getContents();
+    if ($config->get('debug')) {
+      \Drupal::logger('tmgmt_thebigword')->debug('%method Request to %url:<br>
+            <ul>
+                <li>Request: %request</li>
+                <li>Response: %response</li>
+            </ul>
+            ', [
+              '%method' => $method,
+              '%url' => $url,
+              '%request' => json_encode($options),
+              '%response' => $received_data,
+            ]
+      );
     }
     if ($code) {
       return $response->getStatusCode();
@@ -309,7 +336,6 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
     }
 
     // If we are expecting a download, just return received data.
-    $received_data = $response->getBody()->getContents();
     if ($download) {
       return $received_data;
     }
