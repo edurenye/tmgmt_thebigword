@@ -81,7 +81,7 @@ function tmgmt_thebigword_form_tmgmt_settings_form_alter(&$form, FormStateInterf
     '#type' => 'checkbox',
     '#title' => t('Debug mode'),
     '#default_value' => $config->get('debug'),
-    '#description' => t('Check it to enable the debugging mode.'),
+    '#description' => t('Enabling this will log all communication with thebigword API. Should not be enabled on production.'),
   ];
   $form['#submit'][] = 'tmgmt_thebigword_form_tmgmt_settings_form_submit';
 

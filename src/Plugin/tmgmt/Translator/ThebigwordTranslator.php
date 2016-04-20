@@ -282,20 +282,6 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       $options['headers'] = [
         'TMS-REQUESTER-ID' => $this->translator->getSetting('client_contact_key'),
       ];
-      if ($config->get('debug')) {
-        \Drupal::logger('tmgmt_thebigword')->debug('Request info:<br>
-            <ul>
-                <li>Method: %method</li>
-                <li>Url: %url</li>
-                <li>Options: %options</li>
-            </ul>
-            ', [
-              '%method' => $method,
-              '%url' => $url,
-              '%options' => json_encode($options),
-            ]
-        );
-      }
       $response = $this->client->request($method, $url, $options);
     }
     catch (RequestException $e) {
@@ -307,7 +293,18 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
       }
       $response = $e->getResponse();
       if ($config->get('debug')) {
-        \Drupal::logger('tmgmt_thebigword')->debug('Response received %response', ['%response' => $response->getBody()->getContents()]);
+        \Drupal::logger('tmgmt_thebigword')->error('%method Request to %url:<br>
+            <ul>
+                <li>Request: %request</li>
+                <li>Response: %response</li>
+            </ul>
+            ', [
+              '%method' => $method,
+              '%url' => $url,
+              '%request' => $e->getRequest(),
+              '%response' => $response->getBody()->getContents(),
+            ]
+        );
       }
       if ($code) {
         return $response->getStatusCode();
@@ -316,7 +313,18 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
     }
     $received_data = $response->getBody()->getContents();
     if ($config->get('debug')) {
-      \Drupal::logger('tmgmt_thebigword')->debug('Response received %response', ['%response' => $received_data]);
+      \Drupal::logger('tmgmt_thebigword')->debug('%method Request to %url:<br>
+            <ul>
+                <li>Request: %request</li>
+                <li>Response: %response</li>
+            </ul>
+            ', [
+              '%method' => $method,
+              '%url' => $url,
+              '%request' => json_encode($options),
+              '%response' => $received_data,
+            ]
+      );
     }
     if ($code) {
       return $response->getStatusCode();
