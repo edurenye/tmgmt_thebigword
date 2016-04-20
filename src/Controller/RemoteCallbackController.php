@@ -27,8 +27,10 @@ class RemoteCallbackController extends ControllerBase {
    *   The response to return.
    */
   public function callback(Request $request) {
-    // @todo Remove this when the server start to call it well.
-    \Drupal::logger('tmgmt_thebigword')->warning('Request received %request', ['%request' => $request]);
+    $config = \Drupal::configFactory()->get('tmgmt_thebigword.settings');
+    if ($config->get('debug')) {
+      \Drupal::logger('tmgmt_thebigword')->debug('Request received %request', ['%request' => $request]);
+    }
     $project_id = $request->get('ProjectId');
     $file_id = $request->get('FileId');
     if (isset($project_id) && isset($file_id)) {
