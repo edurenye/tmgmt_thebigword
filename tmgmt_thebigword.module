@@ -44,6 +44,9 @@ function tmgmt_thebigword_menu() {
  * Callback for TheBigWord requests.
  */
 function tmgmt_thebigword_callback() {
+  if (variable_get('tmgmt_thebigword_debug', FALSE)) {
+    watchdog('tmgmt_thebigword', 'Request received %request', array('%request' => json_encode($_GET)), WATCHDOG_DEBUG);
+  }
   $project_id = $_GET['ProjectId'];
   $file_id = $_GET['FileId'];
   if (isset($project_id) && isset($file_id)) {
@@ -137,7 +140,7 @@ function tmgmt_thebigword_plugin_settings_form_validate($element, &$form_state, 
   $translator->settings = $settings;
   /** @var TMGMTTheBigWordPluginController $controller */
   $controller = $translator->getController();
-  $result = $controller->getConnector($translator)->request('states', 'GET', array(), FALSE, TRUE);
+  $result = $controller->getConnector($translator)->request('states', 'GET', array(), TRUE);
   if ($result == 401) {
     form_error($element, t('The client contact key is not correct.'));
   }
