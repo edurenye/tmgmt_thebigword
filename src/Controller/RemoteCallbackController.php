@@ -52,8 +52,16 @@ class RemoteCallbackController extends ControllerBase {
       $translator_plugin = $remote->getJob()->getTranslator()->getPlugin();
       $translator_plugin->setTranslator($remote->getJob()->getTranslator());
 
-      $info = $translator_plugin->request('fileinfo/' . $file_id);
-      $translator_plugin->fetchTranslatedFiles($remote->getJob(), $info['FileState'], $project_id);
+      $info = $translator_plugin->request('file/cmsstate/' . $file_id);
+      $job = $remote->getJob();
+      $job_item = $remote->getJobItem();
+      try {
+        $translator_plugin->addFileDataToJob($remote->getJob(), $info['CmsState'], $project_id, $file_id);
+      }
+      catch (TMGMTException $e) {
+        $translator_plugin->sendFileError('RestartPoint01', $project_id, $file_id, $job_item->getJob(), $e->getMessage());
+        $job->addMessage('Error fetching the job item: @job_item.', ['@job_item' => $job_item->label()], 'error');
+      }
     }
     else {
       return new Response('Bad request.', 400);
