@@ -720,7 +720,7 @@ class ThebigwordTranslator extends TranslatorPluginBase implements ContainerFact
    *
    * @throws \Drupal\tmgmt\TMGMTException
    */
-  private function addFileDataToJob(JobInterface $job, $state, $project_id, $file_id) {
+  public function addFileDataToJob(JobInterface $job, $state, $project_id, $file_id) {
     $data = $this->request('file/' . $state . '/' . $file_id);
     $decoded_data = base64_decode($data['FileData']);
     $file_data = $this->parseTranslationData($decoded_data);
