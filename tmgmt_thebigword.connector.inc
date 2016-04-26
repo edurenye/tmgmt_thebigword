@@ -576,7 +576,7 @@ class TheBigWordConnector {
    *
    * @throws TMGMTException
    */
-  private function addFileDataToJob(TMGMTJob $job, $state, $file_id) {
+  public function addFileDataToJob(TMGMTJob $job, $state, $file_id) {
     $data = $this->request('file/' . $state . '/' . $file_id);
     $decoded_data = base64_decode($data['FileData']);
     $file_data = $this->parseTranslationData($decoded_data);

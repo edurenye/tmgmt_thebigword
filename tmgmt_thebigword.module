@@ -69,8 +69,8 @@ function tmgmt_thebigword_callback() {
 
     /** @var TMGMTTheBigWordPluginController $translator_plugin */
     $translator_plugin = $remote->getJob()->getTranslatorController();
-    $info = $translator_plugin->getConnector($remote->getJob()->getTranslator())->request('fileinfo/' . $file_id);
-    $translator_plugin->getConnector($remote->getJob()->getTranslator())->fetchTranslatedFiles($remote->getJob(), $info['FileState'], $project_id);
+    $info = $translator_plugin->getConnector($remote->getJob()->getTranslator())->request('file/cmsstate/' . $file_id);
+    $translator_plugin->getConnector($remote->getJob()->getTranslator())->addFileDataToJob($remote->getJob(), $info['CmsState'], $file_id);
   }
   else {
     return new HttpResponse('Bad request.', 400);
@@ -271,6 +271,32 @@ function tmgmt_thebigword_get_remote_data($project_id, $data_key) {
     return $mapping->getRemoteData($data_key);
   }
   return NULL;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function tmgmt_thebigword_form_tmgmt_ui_settings_form_alter(&$form, &$form_state) {
+  $form['thebigword'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('thebigword Connector for Drupal'),
+  );
+
+  $form['thebigword']['debug'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Debug mode'),
+    '#default_value' => variable_get('tmgmt_thebigword_debug', FALSE),
+    '#description' => t('Enabling this will log all communication with thebigword API. Should not be enabled on production.'),
+  );
+  $form['#submit'][] = 'tmgmt_thebigword_form_tmgmt_ui_settings_form_submit';
+
+}
+
+/**
+ * Submit callback for tmgmt_settings_form.
+ */
+function tmgmt_thebigword_form_tmgmt_ui_settings_form_submit($form, &$form_state) {
+  variable_set('tmgmt_thebigword_debug', $form_state['values']['debug']);
 }
 
 /**
