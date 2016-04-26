@@ -119,8 +119,6 @@ class TheBigWordConnector {
    *   (Optional) HTTP method (GET, POST...). By default uses GET method.
    * @param array $params
    *   (Optional) Form parameters to send to thebigword service.
-   * @param bool $download
-   *   (Optional) If we expect resource to be downloaded. FALSE by default.
    * @param bool $code
    *   (Optional) If we want to return the status code of the call. FALSE by
    *   default.
@@ -130,7 +128,7 @@ class TheBigWordConnector {
    *
    * @throws TMGMTException
    */
-  public function request($path, $method = 'GET', $params = array(), $download = FALSE, $code = FALSE) {
+  public function request($path, $method = 'GET', $params = array(), $code = FALSE) {
     $options = array();
 
     $url = $this->serviceUrl . '/' . $path;
@@ -146,26 +144,45 @@ class TheBigWordConnector {
       $options['data'] = json_encode($params);
       $options['method'] = $method;
     }
-    try {
-      $response = drupal_http_request($url, $options);
+
+    $response = drupal_http_request($url, $options);
+    $received_data = $response->data;
+
+    if ($response->code != 200) {
+      watchdog('tmgmt_thebigword', '%method Request to %url:<br>
+        <ul>
+            <li>Request: %request</li>
+            <li>Response: %response</li>
+        </ul>
+        ', array(
+          '%method' => $method,
+          '%url' => $url,
+          '%request' => json_encode($options),
+          '%response' => $received_data,
+        ), WATCHDOG_ERROR);
+      if ($code) {
+        return $response->code;
+      }
+      throw new TMGMTException('Unable to connect to thebigword service due to following error: @error at @url',
+        array('@error' => $response->code, '@url' => $url));
     }
-    catch (HttpRequestException $e) {
-      throw new TMGMTException('Unable to connect to thebigword service due to following error: @error', array('@error' => $e->getMessage()), $e->getCode());
-    }
+
+    watchdog('tmgmt_thebigword', '%method Request to %url:<br>
+        <ul>
+            <li>Request: %request</li>
+            <li>Response: %response</li>
+        </ul>
+        ', array(
+      '%method' => $method,
+      '%url' => $url,
+      '%request' => json_encode($options),
+      '%response' => $received_data
+    ), WATCHDOG_DEBUG);
+
     if ($code) {
       return $response->code;
     }
 
-    if ($response->code != 200) {
-      throw new TMGMTException('Unable to connect to the thebigword service due to following error: @error at @url',
-        array('@error' => $response->code, '@url' => $url));
-    }
-
-    // If we are expecting a download, just return received data.
-    $received_data = $response->data;
-    if ($download) {
-      return $received_data;
-    }
     $received_data = json_decode($received_data, TRUE);
 
     return $received_data;
@@ -559,7 +576,7 @@ class TheBigWordConnector {
    *
    * @throws TMGMTException
    */
-  private function addFileDataToJob(TMGMTJob $job, $state, $file_id) {
+  public function addFileDataToJob(TMGMTJob $job, $state, $file_id) {
     $data = $this->request('file/' . $state . '/' . $file_id);
     $decoded_data = base64_decode($data['FileData']);
     $file_data = $this->parseTranslationData($decoded_data);
